@@ -14,7 +14,7 @@ from misc import AttrDict
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
 # import unisens
-# 
+#
 lowercase = lambda s: s[:1].lower() + s[1:] if s else ''
 
 def strip(string):
@@ -30,10 +30,20 @@ def strip(string):
     return string    
    
     
+def validkey(key):
+    """
+    Check if a tag or a key is valid.
+    In XML this basically means that the 
+    key does not start with a number
+    """
+    assert isinstance(key, str), 'Key must be string'
+    if key[0].isdigit():
+        raise ValueError('Key cannot start with a number: {}'.format(key))
+    return key
 
 class Entry(Element):
     
-    def __init__(self, folder='.', element=None, id=None):
+    def __init__(self, folder='.', id=None, element=None):
         if element is not None:
             self.attrib = element.attrib
             self.tag  = strip(element.tag)
@@ -65,7 +75,8 @@ class Entry(Element):
         methods = dir(type(self))
         super.__setattr__(self, name, value)
         # do not overwrite if it's a builtin method
-        if name not in methods and not name.startswith('_'):
+        if name not in methods and not name.startswith('_') and \
+            isinstance(value, (int, float, bool, bytes)):
             self.set(name, value)
 
     def set(self, name, value):
@@ -79,12 +90,15 @@ class Entry(Element):
         Element.set(self, name, value)
         self.__dict__.update(self.attrib)
                    
+        
     def __repr__(self):
         owntype = type(self).__name__
         return "<{}({})>".format(owntype, self.id)
     
+    
     def to_xml(self):
         return ET.tostring(self).decode()
+    
     
     def remove_attr(self, key):
         """
@@ -222,26 +236,122 @@ class group(Entry):
 class CustomEntry(Entry):
     pass
 
+
+class CustomAttribute(Element):
+    def __repr__(self):
+        return 'customAttribute({}:{})'.format(*self.attrib.values())
+
 class CustomAttributes(Entry):
-    def __init__(self, attrib):
-        _attrib = AttrDict()
-        for attr in attrib.values():   
-            key, value = attr['key'], attr['value']
-            _attrib[key] = value
-        self.attrib = _attrib
-        self.__dict__.update(_attrib)
+    def __init__(self, element=None):
+        """
+        """
+        
+        self.tag = element.tag
+        self.tail = element.tail
+        self.text = element.text
+        attrib = AttrDict()
+        for cattr in element:
+            key = cattr.attrib['key']
+            value = cattr.attrib['value']
+            attrib[key] = value
+            # self.append(cattr)
+        # actually we do not have attribs in CustomAttributes,
+        # so save them hidden
+        self._attrib = attrib
+        self.__dict__.update(attrib)
+        self._update()
+        
+    def __setattr__(self, name, value):
+        """
+        This will allow to set new attributes with .attrname = value
+        while warning the user if builtin methods are overwritten
+        """
+        print('setting attr')
+        methods = dir(type(self))
+        super.__setattr__(self, name, value)
+        # do not overwrite if it's a builtin method
+        if name not in methods and not name.startswith('_') and \
+            isinstance(value, (int, float, bool, bytes)):
+            print('calling set')
+            self.set(name, value)
+
+
+    def set(self, key, value):
+        """
+        dsfv
+        """
+        validkey(key)
+        key = str(key)
+        value = str(value)
+        self._attrib[key] = value
+        self._update()
+        
+    def remove(self, key):
+        if key in self._attrib:
+            del self._attrib[key]
+            Entry.remove(self, key)
+            self._update()
+        else:
+            Entry.remove(self, key)
+    
+    def _update(self):
+        """
+        This will reconstruct the children of this CustomAttributes
+        such that they can be converted to proper XML later on.
+        """
+        print('here', self._attrib, list(self))
+        
+        for child in list(self):
+            Entry.remove(self, child)
+            
+        for key, value in self._attrib.items():
+            attrib = {'key':key, 'value':value}
+            customAttribute = CustomAttribute('customAttribute', attrib=attrib)
+            self.append(customAttribute)
+            print(1)
+        print(list(self))
         
     def __repr__(self):
-        attrib = ', '.join([x for x in self.attrib])
+        attrib = ', '.join([x for x in self._attrib])
         s = '<CustomAttributes({})>'.format(attrib)
         return s
     
+class MiscEntry(Element):
+    def __init__(self, name=None, element=None):
+        self.attrib = element.attrib
+        self.text = element.text
+        self.tail = element.tail
+        self.tag = lowercase(element.tag) if name is None else lowercase(name)
+        for elem in list(element):
+            self.append(MiscEntry(element=elem))
+        self.__dict__.update(self.attrib)
+        
+    def __repr__(self):
+        attrib = ', '.join([x for x in self.attrib])
+        s = '<{}({})>'.format(self.tag,attrib)
+        return s
+    
+class Group(Entry):
+    def __init__(self, key=None, value=None, element=None):
+        self.attrib = element.attrib
+        self.text = element.text
+        self.tail = element.tail
+        self.tag = 'group'
+        self.__dict__.update(self.attrib)
+    
+    def __repr__(self):
+        attrib = ', '.join([x for x in self.attrib])
+        s = '<{}({})>'.format(self.tag,attrib)
+        return s
     
 class Context(Entry):
     
-    def __init__(self, attrib:dict):
-        self.attrib = attrib
-        self.__dict__.update(attrib)
+    def __init__(self, key=None, value=None, element=None):
+        self.attrib = element.attrib
+        self.text = element.text
+        self.tail = element.tail
+        self.tag = 'context'
+        self.__dict__.update(self.attrib)
     
     def __repr__(self):
         attrib = ', '.join([x for x in self.attrib])

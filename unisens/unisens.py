@@ -22,12 +22,15 @@ todo: summary
 todo: correct wdir
 todo: edf2unisens
 todo: __set attr__ for entry inhertance, update attrib
+todo: plotting
+todo: example file
+todo: impolement del__
 
 @author: skjerns
 """
 import os
 from entry import CustomAttributes, ValuesEntry, SignalEntry, EventEntry, \
-                  Entry, Context, CustomEntry
+                  Entry, Context, CustomEntry, Group, MiscEntry
 from misc import AttrDict
 import datetime
 from xml.etree import ElementTree as ET
@@ -82,33 +85,63 @@ def unpack(element):
     return d
         
 
-class Unisens(Element):
+class Unisens(Entry):
     
-    def __init__(self, folder, attrib=None, comment:str=None, duration:int=0, 
-                 measurementId:str='', timestampStart=None, version=None,
-                 root=None):
+    def __init__(self, folder, makenew=False, comment:str='', duration:int=0, 
+                 measurementId:str='NaN', timestampStart=''):
+        """
+        Initializes a Unisens object.
+        If a unisens.xml file is already present in the folder, it will load
+        the unisens data contained in this xml. If makenew=True is set, 
+        the given unisens.xml will be replaced with a new unisens object.
+        If no unisens.xml is present, a new unisens object will be created.
         
+        :param folder: The folder where the unisens data is stored.
+        :param makenew: Create a new unisens.xml, even if one is present.
+        If no unisens.xml is present and new=False
+        :param attrib: The attribute 
+        """
+        os.makedirs(folder, exist_ok=True)
+        folder = os.path.dirname(folder + '/')
         self._folder = folder
+        self._file = os.path.join(folder, 'unisens.xml')
         self.entries = AttrDict()
         self.events  = AttrDict()
         self.signals = AttrDict()
         self.values  = AttrDict()
-        self.custom = AttrDict()
+        self.custom  = AttrDict()
         
-        if root is None and folder:
+        if os.path.isfile(self._file) and not makenew:
             self.read_unisens(folder)
+        else:
+            logging.info('New unisens.xml will be created at {}'.format(\
+                         self._file))
+            if not timestampStart:
+                now = datetime.datetime.now()
+                timestampStart = now.strftime('%Y-%m-%dT%H:%M:%S')
+            attrib = {'comment'  : str(comment),
+                     'duration' : str(duration),
+                     'measurementId' : str(measurementId),
+                     'timestampStart': str(timestampStart),
+                     'version' : '2.0'
+                     }
+            self.attrib  = AttrDict()
+            self.set('comment', comment)
+            self.set('duration', duration)
+            self.set('measurementId', measurementId)
+            self.set('timestampStart', timestampStart)
+            self.set('version', '2.0')
+            self.set('xsi:schemaLocation',"http://www.unisens.org/unisens2.0"+\
+                          " http://www.unisens.org/unisens2.0/unisens.xsd")
+            self.set('xmlns',"http://www.unisens.org/unisens2.0")
+            self.set('xmlns:xsi', "http://www.w3.org/2001/XMLSchema-instance")
+            
+            self.tag = 'unisens'
+            self.attrib = attrib
+            self.tail = '\n  \n  \n  \n  '
+            self.text = '\n'
+        self.__dict__.update(self.attrib)
         
-        
-        if attrib is None: attrib = {}
-        _attrib = {'comment'  : comment,
-                 'duration' : duration,
-                 'measurementId' : measurementId,
-                 'timestampStart': timestampStart,
-                 'version' : version
-                 }
-        
-        
-        _attrib.update(attrib)
 
     def __getitem__(self, key):
         if isinstance(key, str):
@@ -138,7 +171,7 @@ class Unisens(Element):
               version)
         return s
     
-    def save(self,file, folder=None):
+    def save(self, filename, folder=None):
         """
         Save this Unisens xml file to filename.
         filename should be
@@ -147,6 +180,7 @@ class Unisens(Element):
         # file = os.path.join(os.path.dirname(folder), 'unisens.xml')
         ET.register_namespace("", "http://www.unisens.org/unisens2.0")
         et = ET.ElementTree(self)
+        file = os.path.join(self._folder, filename)
         et.write(file, xml_declaration=True, default_namespace='', 
                  encoding='utf-8')
         logging.warning('should be folder, TODO')
@@ -156,6 +190,7 @@ class Unisens(Element):
         """
         Loads an XML Unisens file into this Unisens object.
         That means, self.attrib and self.children are added
+        as well as tag, tail and text
         
         :param folder: folder where the unisens.xml is located. 
         :returns: self
@@ -183,26 +218,23 @@ class Unisens(Element):
             l.append(entry)
             
             if entryType == 'customAttributes':
-                attrib = unpack(entry)
-                entry = CustomAttributes(attrib = attrib)
+                # attrib = unpack(entry)
+                entry = CustomAttributes(element = entry)
             elif entryType == 'eventEntry':
                 entry = EventEntry(folder=folder, element=entry)
             elif entryType == 'signalEntry':
-                attrib = unpack(entry)
                 entry = SignalEntry(folder=folder, element=entry)
             elif entryType == 'valuesEntry':
                 entry = ValuesEntry(folder=folder, element=entry)
             elif entryType == 'customEntry':
-                attrib = unpack(entry)
                 entry = CustomEntry(folder=folder, element=entry)
             elif entryType == 'context':
-                attrib = unpack(entry)
-                entry = Context(attrib=attrib)
-                l.append(attrib)
+                entry = MiscEntry(element=entry)
+            elif entryType == 'group':
+                entry = MiscEntry(element=entry)
             else:
                 logging.warning('Unknown entry type: {}'.format(entryType))
                 entry = unpack(entry)
-                # entry = CustomAttributes(attrib)
                 entry.id = 'unknown'
             self.add_entry(entry)
         return self
@@ -218,13 +250,13 @@ class Unisens(Element):
         try:
             self.append(entry)
         except:
-            print('nope add for entry {}'.format(entry))
+            print('nope add for entry {}\n'.format(entry))
         entryType = entry
         
-        if isinstance(entryType, CustomAttributes):
+        if isinstance(entryType, (CustomAttributes)):
             self.customAttributes = entry
             return self
-        elif isinstance(entry, Context):
+        elif isinstance(entry, MiscEntry):
             self.context = entry
             return self
         id = entry.id
@@ -239,7 +271,7 @@ class Unisens(Element):
         elif isinstance(entryType, CustomEntry):
             self.custom[id] = entry
         else:
-            print('what?', entryType, entry)
+            print('what?', entryType, entry,'\n' )
         entry._folder = self._folder
         return self
     
@@ -308,17 +340,20 @@ class Unisens(Element):
     def update_attributes(self, attr:dict):
         self.attrib.update(attr)
         return self
-    
 
-    
 
-    
-folder='C:/Users/Simon/Desktop/pyUnisens/unisens/'    
+
+
+folder='C:/Users/Simon/Desktop/pyUnisens/unisens/example_003'    
 l =[]
 self = Unisens(folder)
-# a = self.entries['bloodpressure.csv']
-b = ValuesEntry(id='values')
-self.add_entry(b)
+a = self.customAttributes
+a.newkey = 'newvalue'
+# a.newkey2 = 'newvalue2'
+a.set('newkey3', 'newvalue3')
+a.newkey = 'newvalue'
+
+a = self.customAttributes
 self.save('test.xml')
 
 print(repr(self))
