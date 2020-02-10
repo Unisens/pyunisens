@@ -179,7 +179,9 @@ class SignalEntry(FileEntry):
         :param data: an numpy array or list with values
         :param sampleRate: the sample rate of this data
         :param lsbValue: the value with which this data is scaled.
-                         this means that            
+                         this means that       
+        :param comment: sets a comment associated with this data
+        :param contentClass: sets the content class, e.g. EEG, ECG,...
         """
         raise NotImplementedError
 
@@ -258,10 +260,29 @@ class EventEntry(FileEntry):
 
 
 class CustomEntry(FileEntry):
+    
     def __init__(self, id=None, **kwargs):
         super().__init__(id=id, **kwargs)      
         
+    def get_data(self, dtype='binary'):
+        """
+        Will load the binary data of this CustomEntry.
+        Has builtin functionality to load images using PIL
         
+        :param dtype: binary or image.
+        :returns: the binary data or an PIL.Image
+        """
+        if dtype=='binary':
+            with open(self._filename, 'rb') as f:
+                data = f.read()
+        elif dtype=='image':
+            from PIL import Image
+            data = Image.open(self._filename)
+        else:
+            raise ValueError('unknown dtype {}'.format(dtype))
+        return data
+        
+    
 class CustomAttributes(Entry):
     def __init__(self, key:str=None, value:str=None, **kwargs):
         super().__init__(**kwargs)   

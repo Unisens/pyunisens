@@ -27,6 +27,8 @@ todo: example file
 todo: impolement del__
 todo: implement update
 todo: add group
+todo: csvFileFormat standard
+todo: add data
 
 @author: skjerns
 """
@@ -157,15 +159,22 @@ class Unisens(Entry):
         return s
     
     def add_entry(self, entry:Entry):
+        """
+        Add a subentry to this unisens object, e.g ValueEntry, SignalEntry
+        
+        :param entry: An Entry subtype that should be added
+        :returns: self
+        """
         super().add_entry(entry)
         if isinstance(entry, FileEntry):
             self.entries[entry.id] = entry
+        return self
     
     
     def unpack_element(self, element:( Element, ET)) -> Entry:
         """
         Unpacks an xmltree element iteratively into an the
-        corresponding 
+        corresponding subtype Entry object.
         
         :param element: An xml tree element
         """
@@ -198,8 +207,12 @@ class Unisens(Entry):
     
     def save(self, folder:str=None, filename:str='unisens.xml') -> Entry:
         """
-        Save this Unisens xml file to filename.
-        filename should be
+        Save this Unisens xml file to a given folder and filename.
+        filename should be unisens.xml, but can be altered if necessary
+        
+        :param folder: where to save the unisens description object.
+                       will overwrite existing description file.
+        :param filename: the filename to save. use unisens.xml.
         """
         if folder is None:
             folder = self._folder

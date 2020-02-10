@@ -12,6 +12,7 @@ import unisens
 import unittest
 import shutil
 import tempfile
+import numpy as np
 
 
 
@@ -348,6 +349,34 @@ class Testing(unittest.TestCase):
         self.assertEqual(len(data), 2)
         self.assertEqual(data[0][0], 10)
         self.assertEqual(data[0][1], 4521)
+        
+        events = u['picture.jpg']
+        data = events.get_data()       
+        self.assertEqual(len(data), 724116)
+        data = events.get_data(dtype='image')       
+        data = np.asarray(data)
+        self.assertEqual(data.sum(), 706817789)
+   
+
+
+    def test_save_data(self):
+        folder = os.path.join(self.tmpdir, 'data', 'record')
+        u = unisens.Unisens(folder)
+        data = np.random.rand(5,500)
+        signal = SignalEntry(id='signal.bin')
+        signal.set_attrib('test', 'asd')
+        signal.set_data(data, sampleRate=500, lsbValue=1, unit='mV', comment='Test', contentClass='EEG')
+        
+        data = signal.get_data()       
+        self.assertEqual(len(data),2)
+        self.assertEqual(data.size, 1817200)
+        self.assertEqual(data.min(), 1)
+        self.assertEqual(data.max(), 32767)
+        data = signal.get_data(scaled=False)       
+        self.assertEqual(len(data),2)
+        self.assertEqual(data.size, 1817200)
+        self.assertEqual(data.min(), 1)
+        self.assertEqual(data.max(), 32767)
         
 if __name__ == '__main__':
     unittest.main()
