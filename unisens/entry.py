@@ -41,7 +41,7 @@ class Entry():
         # do not overwrite if it's a builtin method
         if name not in methods and not name.startswith('_') and \
             isinstance(value, (int, float, bool, bytes, str)):
-            self.set_attr(name, value)
+            self.set_attrib(name, value)
 
 
 
@@ -64,7 +64,7 @@ class Entry():
     def remove_entry():
         pass
 
-    def set_attr(self, name:str, value:str):
+    def set_attrib(self, name:str, value:str):
         """
         Set an attribute of this Entry
 
@@ -130,13 +130,13 @@ class FileEntry(Entry):
         super().__init__(attrib=attrib, folder=folder, **kwargs)
         if 'id' in self.attrib:
             self._filename = os.path.join(self._folder, self.id)
-            self.set_attr('id', self.id)
+            self.set_attrib('id', self.id)
             if not os.path.exists(self._filename):
                 logging.error('File for {} does not exist'.format(self.id))               
         elif id:
             if os.path.splitext(str(id))[-1]=='':
                 logging.warning('id should be a filename, ie. .bin/.csv/...')
-            self.set_attr('id', id)
+            self.set_attrib('id', id)
         else:
             raise ValueError('id must be supplied')
         
@@ -193,8 +193,8 @@ class ValuesEntry(FileEntry):
             logging.warn('csvFileFormat information missing for {}'\
                          .format(self.id))
             # csvFileFormat = MiscEntry(name = 'csvFileFormat')
-            # csvFileFormat.set_attr('decimal', '.')
-            # csvFileFormat.set_attr('separator', ';')
+            # csvFileFormat.set_attrib('decimal', '.')
+            # csvFileFormat.set_attrib('separator', ';')
             # self.add_entry(csvFileFormat)        
             
     def get_data(self, mode:str='list'):
@@ -243,8 +243,8 @@ class EventEntry(FileEntry):
             logging.warn('csvFileFormat information missing for {}'\
                          .format(self.id))
             # csvFileFormat = MiscEntry(name = 'csvFileFormat')
-            # csvFileFormat.set_attr('decimal', '.')
-            # csvFileFormat.set_attr('separator', ';')
+            # csvFileFormat.set_attrib('decimal', '.')
+            # csvFileFormat.set_attrib('separator', ';')
             # self.add_entry(csvFileFormat)
             
     def get_data(self, mode:str='list'):
@@ -287,7 +287,7 @@ class CustomAttributes(Entry):
     def __init__(self, key:str=None, value:str=None, **kwargs):
         super().__init__(**kwargs)   
         if key and value:
-            self.set_attr(key, value)
+            self.set_attrib(key, value)
         
     def to_element(self):
         element = Element(self._name, attrib={})
@@ -306,14 +306,14 @@ class CustomAttributes(Entry):
             logging.error('Can only add customAttribute type')
             return
         e.append(entry)
-        self.set_attr(entry.key, entry.value)
+        self.set_attrib(entry.key, entry.value)
   
 class MiscEntry(Entry):
     def __init__(self, name:str, key:str=None, value:str=None, **kwargs):
         super().__init__(**kwargs) 
         self._name = strip(name)
         if key and value:
-            self.set_attr(key, value)
+            self.set_attrib(key, value)
             
 class CustomAttribute(MiscEntry):
     def __new__(*args,**kwargs):

@@ -1,2 +1,2 @@
-from .unisens import Unisens
-from . import entry
+import entry
+import main
