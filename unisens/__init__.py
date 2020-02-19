@@ -1,2 +1,2 @@
-import entry
-import main
+from .entry import *
+from .main import Unisens

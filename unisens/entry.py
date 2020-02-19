@@ -4,10 +4,10 @@ Created on Mon Jan  6 21:16:58 2020
 
 @author: skjerns
 """
-import os
+import os, sys
 import numpy as np
 import logging
-from utils import validkey, strip, lowercase
+from .utils import validkey, strip, lowercase
 from lxml.etree import ElementTree as ET
 from lxml.etree import Element
 
@@ -23,12 +23,12 @@ class Entry():
     def __repr__(self):
         return "<{}({})>".format(self._name, self.attrib)
     
-    def __init__(self, attrib=None, folder='.'):
+    def __init__(self, attrib=None, parent='.'):
         if attrib is None: attrib=dict()
         self.attrib = attrib
         self.__dict__.update(self.attrib)
         self._entries = list()
-        self._folder = folder
+        self._folder = parent._folder if isinstance(parent, Entry) else parent
         self._name = lowercase(type(self).__name__)
     
     def __setattr__(self, name:str, value:str):
@@ -46,6 +46,16 @@ class Entry():
 
 
     def add_entry(self, entry:'Entry'):
+        
+        # there are several Entries that have reserved names.
+        # these should not exist double, therefore they are re-set here
+        reserved = ['binFileFormat', 'csvFileFormat', 'customFileFormat']
+        for name in reserved:
+            if entry._name==name and name in self.__dict__:
+                if isinstance(self.csvFileFormat, Entry): 
+                    self.remove_entry(name)
+        
+        
         self._entries.append(entry)
         name = entry._name
         # if an entry already exists with this exact name
@@ -61,8 +71,28 @@ class Entry():
             self.__dict__[entry._name] = entry
         return self
 
-    def remove_entry():
-        pass
+
+    def remove_entry(self, name):
+        deleted = False
+        print(2, self._entries)
+        for i, entry in enumerate(self._entries):
+            if entry._name == name:
+                del self._entries[i]
+                try: del self.__dict__[name]
+                except: pass
+                deleted = True
+            if hasattr(entry, 'id') and entry.id==name:
+                del self._entries[i]
+                try: del self.__dict__[name]
+                except: pass
+                deleted = True
+            if deleted: return
+        if name in self.__dict__:
+            del self.__dict__[name]
+            deleted = True
+        if deleted: return
+        raise Exception(f'cannot find entry {name}')
+
 
     def set_attrib(self, name:str, value:str):
         """
@@ -109,6 +139,7 @@ class Entry():
             element.append(subelement.to_element())
         return element
     
+    
     def to_xml(self):
         element = self.to_element()
         return ET.tostring(element).decode()
@@ -126,8 +157,8 @@ class FileEntry(Entry):
         id = self.attrib.get('id', 'None')
         return "<{}({})>".format(self._name, id)
     
-    def __init__(self, id, attrib=None, folder='.', **kwargs):
-        super().__init__(attrib=attrib, folder=folder, **kwargs)
+    def __init__(self, id, attrib=None, parent='.', **kwargs):
+        super().__init__(attrib=attrib, parent=parent, **kwargs)
         if 'id' in self.attrib:
             self._filename = os.path.join(self._folder, self.id)
             self.set_attrib('id', self.id)
@@ -143,8 +174,8 @@ class FileEntry(Entry):
         
 class SignalEntry(FileEntry):
     
-    def __init__(self, id=None,  attrib=None, folder='.', **kwargs):
-        super().__init__(id=id, attrib=attrib, folder=folder, **kwargs)
+    def __init__(self, id=None,  attrib=None, parent='.', **kwargs):
+        super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
         
     def get_data(self, scaled:bool=True, return_type:str='numpy') -> np.array:
         """
@@ -160,43 +191,103 @@ class SignalEntry(FileEntry):
         """
         if return_type!='numpy': raise NotImplementedError
         n_channels = len(self.channel) if isinstance(self.channel,list) else 1
-        dtypestr = self.dataType
-        dtype = np.__dict__.get(dtypestr)
+        dtypestr = self.dataType.lower()
+        dtype = np.__dict__.get(dtypestr, f'UNKOWN_DATATYPE: {dtypestr}')
         data = np.fromfile(self._filename, dtype=dtype)
         if scaled:
             data = (data * float(self.lsbValue))
         data = data.reshape([n_channels, -1])
         return data
     
-    def set_data(self, data:np.ndarray, sampleRate:int=None, lsbValue:float=1,
-                 unit:str=None, comment:str=None, contentClass:str=None):
+    def set_data(self, data:np.ndarray, dataType:str=None, ch_names:list=None, 
+                       sampleRate:int=None, lsbValue:float=1, unit:str=None, 
+                       comment:str=None, contentClass:str=None):
         """
         Set the data that is connected to this SignalEntry.
         The data will in any case be saved with Endianness LITTLE,
         as this is the default for numpy. Data will be saved using
         numpy binary data output.
         
-        :param data: an numpy array or list with values
+        :param data: an numpy array
+        :param dataType: the data type of the data. If None, is array.dtype.
+                         Will be used for binary stream output format.
         :param sampleRate: the sample rate of this data
         :param lsbValue: the value with which this data is scaled.
                          this means that       
         :param comment: sets a comment associated with this data
-        :param contentClass: sets the content class, e.g. EEG, ECG,...
+        :param unit: the unit which is indicated, e.g. mV, Ohm, ...
+        :param contentClass: sets the content class, e.g. EEG, ECG, ...
         """
-        raise NotImplementedError
-
-
-class ValuesEntry(FileEntry):
-    def __init__(self, id=None, attrib=None, folder='.' , **kwargs):
-        super().__init__(id=id, attrib=attrib, folder=folder, **kwargs)
-        if not 'csvFileFormat' in self.__dict__:
-            logging.warn('csvFileFormat information missing for {}'\
-                         .format(self.id))
-            # csvFileFormat = MiscEntry(name = 'csvFileFormat')
-            # csvFileFormat.set_attrib('decimal', '.')
-            # csvFileFormat.set_attrib('separator', ';')
-            # self.add_entry(csvFileFormat)        
+    
+        file = os.path.join(self._folder, self.id)
+        
+        # if list, convert to numpy array
+        if isinstance(data, list):
+            # if the list entries are arrays, we can infer the dtype from them
+            if isinstance(data[0], np.ndarray) and dataType is None:
+                dataType = str(data[0].dtype).upper()
+            data = np.array(data, dtype=dataType)
+        else:
+            # infer dtype from array if not indicated
+            if dataType is None:
+                dataType = str(data.dtype).upper()
+        
+        if ch_names is None and hasattr(self, 'channel') and\
+           len(self.channel)==len(data): 
+               # this means channel information is present and matches array
+               pass
+        elif ch_names is not None: 
+            # this means new channel names are indicated and will overwrite.
+            assert len(ch_names)==len(data)
+            if hasattr(self.channel):
+                logging.warn('Channels present will be overwritten')
+            self.remove_entry('channel')
+            for name in ch_names:
+                channel = MiscEntry('channel', key='name', value=name)
+                self.add_entry(channel)
+        elif ch_names is None and not hasattr(self, 'channel'):
+            # this means no channel names are indicated and none exist
+            # we create new generic names for the channels
+            logging.info('No channel names indicated, will use generic names')
+            for i in range(len(data)):
+                channel = MiscEntry('channel', key='name', value=f'ch_{i}')
+                self.add_entry(channel)
+        else:
+            # this means there are channel names there but do not match n_data
+            raise ValueError('Must indicate channel names')
             
+        # save data using numpy 
+        data.tofile(file)
+        print(os.path.abspath(file))
+        
+        # add the file format description (dont understand why dtype isnt here)
+        order = sys.byteorder.upper() # endianess
+        fileFormat = MiscEntry('binFileFormat', key='endianess', value=order)
+        self.add_entry(fileFormat)
+        
+        if sampleRate is not None: self.set_attrib('sampleRate', sampleRate)
+        if lsbValue is not None: self.set_attrib('lsbValue', lsbValue)
+        if unit is not None: self.set_attrib('unit', unit)
+        if comment is not None: self.set_attrib('comment', comment)
+        if contentClass is not None: self.set_attrib('contentClass', contentClass)
+        if dataType is not None: self.set_attrib('dataType', dataType)
+        # raise NotImplementedError
+
+
+class CsvFileEntry(FileEntry):
+    def __init__(self, id=None, attrib=None, parent='.' , **kwargs):
+        super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
+        if not 'csvFileFormat' in self.__dict__:
+            logging.info(f'csvFileFormat information missing for {self.id},'\
+                         ' assuming decimal=. and seperator=;')
+            csvFileFormat = MiscEntry(name = 'csvFileFormat')
+            csvFileFormat.set_attrib('decimal', '.')
+            csvFileFormat.set_attrib('separator', ';')
+            self.add_entry(csvFileFormat)      
+
+        
+        
+        
     def get_data(self, mode:str='list'):
         """
         Will try to load the csv data using a list, pandas or numpy.
@@ -233,30 +324,20 @@ class ValuesEntry(FileEntry):
             raise ValueError('Invalid mode: {}, select from'
                              '["numpy", "pandas", "list"]'.format(mode))
         return lines
+
+
+class ValuesEntry(CsvFileEntry):
+    def __init__(self, id=None, attrib=None, parent='.' , **kwargs):
+        super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
+
+    
+class EventEntry(CsvFileEntry):
+    
+    def __init__(self, id=None, attrib=None, parent='.' , **kwargs):
+        super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
         
     
-class EventEntry(FileEntry):
-    
-    def __init__(self, id=None, **kwargs):
-        super().__init__(id=id, **kwargs)
-        if not 'csvFileFormat' in self.__dict__:
-            logging.warn('csvFileFormat information missing for {}'\
-                         .format(self.id))
-            # csvFileFormat = MiscEntry(name = 'csvFileFormat')
-            # csvFileFormat.set_attrib('decimal', '.')
-            # csvFileFormat.set_attrib('separator', ';')
-            # self.add_entry(csvFileFormat)
-            
-    def get_data(self, mode:str='list'):
-        """
-        Will try to load the csv data using a list, pandas or numpy.
         
-        :param mode: select the return type
-                     valid options: ['list', 'pandas', 'numpy']
-        :returns: a list, dataframe or numpy array
-        """
-        # we just forward the call to the other function
-        return ValuesEntry.get_data(self, mode)
 
 
 class CustomEntry(FileEntry):
