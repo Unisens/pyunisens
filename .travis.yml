@@ -11,8 +11,8 @@ install:
   - pip install pytest pytest-cov codecov
 # command to run tests
 script:
-  - coverage run ../test/unisens_test.py
-  - pytest ..
+  - coverage run ./test/unisens_test.py
+  - pytest .
 
 after_success:
   - codecov
