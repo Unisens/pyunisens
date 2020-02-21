@@ -75,7 +75,7 @@ class Unisens(Entry):
     
     :param folder: The folder where the unisens data is stored.
     :param makenew: Create a new unisens.xml, even if one is present.
-    If no unisens.xml is present and new=False
+                        If no unisens.xml is present and new=False
     :param attrib: The attribute 
     """
     def __init__(self, folder, makenew=False, comment:str='', duration:int=0, 
