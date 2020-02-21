@@ -5,6 +5,8 @@ Created on Sat Jan  4 16:37:07 2020
 @author: skjerns
 """
 import os
+import sys
+sys.path.append('..')
 try:
     from unisens import CustomEntry, ValuesEntry, EventEntry, SignalEntry
     from unisens import MiscEntry, CustomAttributes, Unisens, FileEntry
