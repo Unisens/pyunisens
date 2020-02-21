@@ -17,12 +17,12 @@ import unisens
 u = unisens.Unisens('c:/folder/dataset/') # folder containing the unisens.xml
 ```
 
-Entries are saved under `.entries` can be accessed either via attribute or using the unisens object as a dictionary
+Entries are saved under `.entries` can be accessed either via attributes or using the unisens object as a dictionary
 
 ```Python
 print(u.entries)
 
-# fourys to rome
+# four ways to Rome
 signal = u.signal_bin
 signal = u['signal.bin']
 signal = u.entries['signal.bin']
@@ -31,18 +31,20 @@ signal = u[0]
 
 Data can be loaded (if datatypeis supported, ie a standard numpy dtype) via `data= signal.get_data()`
 
-You can add Entries simply:
+You can add Entries simply by
 
 ```Python
 import numpy as np
 from unisens import SignalEntry
+
 data = np.random(2, 2560)
-s = SignalEntry(parent=u)
+s = SignalEntry(id='eeg.bin', parent=u)
+# saving the data to eeg.bin
 s.set_data(data, sampleRate=256, contentClass='EEG')
 
 u.add_entry(s)
 
-u.save()
+u.save() # will update the unisens.xml
 ```
 
 more documentation will follow soon.
