@@ -8,8 +8,8 @@ import os, sys
 import numpy as np
 import logging
 from .utils import validkey, strip, lowercase
-from lxml.etree import ElementTree as ET
-from lxml.etree import Element
+from xml.etree import ElementTree as ET
+from xml.etree.ElementTree import Element
 
 
 class Entry():
