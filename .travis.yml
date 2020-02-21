@@ -15,6 +15,5 @@ script:
   - pytest ./test/unisens_test.py
   - coverage run ./test/unisens_test.py
 
-
 after_success:
   - codecov
