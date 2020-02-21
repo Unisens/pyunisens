@@ -298,10 +298,14 @@ class CsvFileEntry(FileEntry):
     def set_data(self, data:list, **kwargs):
         assert 'csvFileFormat' in self.__dict__, 'csvFileFormat information'\
                                     'missing: No separator and decimal set'
-        assert isinstance(data, list), 'data must be list of lists'
+        assert isinstance(data,(list,np.ndarray)),'data must be list of lists'
         
         separator = self.csvFileFormat.separator
         decimal = self.csvFileFormat.decimalSeparator
+        
+        # data can be present in nd arrays.
+        if isinstance(data, np.ndarray):
+            data = [[x for x in d] for d in data]
         
         csv_string = ''
         for line in data:

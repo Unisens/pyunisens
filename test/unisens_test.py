@@ -389,7 +389,7 @@ class Testing(unittest.TestCase):
     def test_save_csvetry(self):
         self.tmpdir = tempfile.mkdtemp(prefix='unisens')
 
-        folder = os.path.join(self.tmpdir, 'data', 'record')
+        folder = os.path.join(self.tmpdir, 'data', 'record1')
         
         u = Unisens(folder, makenew=True)
         times = [[i*100 + float(np.random.rand(1)), f'trigger {i}'] for i in range(15)]
@@ -404,10 +404,9 @@ class Testing(unittest.TestCase):
         times2 = event2.get_data()
         self.assertSequenceEqual(times, times2)
 
-        folder = os.path.join(self.tmpdir, 'data', 'record')
-        u = Unisens(folder, makenew=True)
     
-        # now test with different separators        
+        # now test with different separators   
+        folder = os.path.join(self.tmpdir, 'data', 'record2')
         u = Unisens(folder, makenew=True)
         times = [[i*100 + float(np.random.rand(1)), f'trigger {i}'] for i in range(15)]
         event = EventEntry(id='triggers.csv', parent=u, separator=';', decimalSeparator=',')
@@ -420,8 +419,70 @@ class Testing(unittest.TestCase):
         event2 = u2['triggers.csv']
         times2 = event2.get_data()
         self.assertSequenceEqual(times, times2)
+        
+        # now test with np array
+        folder = os.path.join(self.tmpdir, 'data', 'record3')
+        u = Unisens(folder, makenew=True)
+        times = np.random.rand(5, 15)
+        event = EventEntry(id='triggers.csv', parent=u, separator=',', decimalSeparator='.')
+        event.set_attrib('contentClass','trigger')
+        event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
+        event.set_data(times, contentClass='triggers', unit='ms')
+        u.add_entry(event)
+        u.save()
+        u2 = Unisens(folder)
+        event2 = u2['triggers.csv']
+        times2 = event2.get_data()
+        np.testing.assert_allclose(times, times2)
 
+    def test_save_valuesentry(self):
+        self.tmpdir = tempfile.mkdtemp(prefix='unisens')
 
+        folder = os.path.join(self.tmpdir, 'data', 'record1')
+        
+        u = Unisens(folder, makenew=True)
+        times = [[i*100 + float(np.random.rand(1)), f'trigger {i}'] for i in range(15)]
+        event = ValuesEntry(id='triggers.csv', parent=u, separator=',', decimalSeparator='.')
+        event.set_attrib('contentClass','trigger')
+        event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
+        event.set_data(times, contentClass='triggers', unit='ms')
+        u.add_entry(event)
+        u.save()
+        u2 = Unisens(folder)
+        event2 = u2['triggers.csv']
+        times2 = event2.get_data()
+        self.assertSequenceEqual(times, times2)
+
+    
+        # now test with different separators   
+        folder = os.path.join(self.tmpdir, 'data', 'record2')
+        u = Unisens(folder, makenew=True)
+        times = [[i*100 + float(np.random.rand(1)), f'trigger {i}'] for i in range(15)]
+        event = ValuesEntry(id='triggers.csv', parent=u, separator=';', decimalSeparator=',')
+        event.set_attrib('contentClass','trigger')
+        event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
+        event.set_data(times, contentClass='triggers', unit='ms')
+        u.add_entry(event)
+        u.save()
+        u2 = Unisens(folder)
+        event2 = u2['triggers.csv']
+        times2 = event2.get_data()
+        self.assertSequenceEqual(times, times2)
+        
+        # now test with np array
+        folder = os.path.join(self.tmpdir, 'data', 'record3')
+        u = Unisens(folder, makenew=True)
+        times = np.random.rand(5, 15)
+        event = ValuesEntry(id='triggers.csv', parent=u, separator=',', decimalSeparator='.')
+        event.set_attrib('contentClass','trigger')
+        event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
+        event.set_data(times, contentClass='triggers', unit='ms')
+        u.add_entry(event)
+        u.save()
+        u2 = Unisens(folder)
+        event2 = u2['triggers.csv']
+        times2 = event2.get_data()
+        np.testing.assert_allclose(times, times2)
     
     
 if __name__ == '__main__':
