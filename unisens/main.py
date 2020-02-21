@@ -128,12 +128,16 @@ class Unisens(Entry):
         """
         return Entry.__setattr__(self, name, value)
 
-
+    def __contains__(self, obj):
+        return obj in self.entries
+    
     def __getitem__(self, key):
         if isinstance(key, str):
             return self.entries[key]
         elif isinstance(key, int):
-            return super().__getitem__(key)
+            return self._entries[key]
+        else:
+            raise KeyError(f'{key} not found')
     
     def __str__(self):
         duration = self.__dict__.get('duration', 0)
@@ -169,9 +173,12 @@ class Unisens(Entry):
         :returns: self
         """
         entry._folder = self._folder
-        super().add_entry(entry)
         if isinstance(entry, FileEntry):
+            if entry.id in self:
+                logging.error(f'{entry.id} already present in Unisens')
+                return self
             self.entries[entry.id] = entry
+        super().add_entry(entry)
         return self
     
     
@@ -188,11 +195,13 @@ class Unisens(Entry):
         if entryType == 'customAttributes':
             entry = CustomAttributes(attrib=attrib, parent=self._folder)
         elif entryType == 'eventEntry':
-            entry = EventEntry(attrib=attrib, parent=self._folder)
+            entry = EventEntry(attrib=attrib, parent=self._folder, 
+                               separator=';', decimalSeparator='.')
         elif entryType == 'signalEntry':
             entry = SignalEntry(attrib=attrib, parent=self._folder)
         elif entryType == 'valuesEntry':
-            entry = ValuesEntry(attrib=attrib, parent=self._folder)
+            entry = ValuesEntry(attrib=attrib, parent=self._folder,
+                                separator=';', decimalSeparator='.')
         elif entryType == 'customEntry':
             entry = CustomEntry(attrib=attrib, parent=self._folder)
         elif entryType in ('context', 'group', 'customAttribute', 

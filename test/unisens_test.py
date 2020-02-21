@@ -5,10 +5,10 @@ Created on Sat Jan  4 16:37:07 2020
 @author: skjerns
 """
 import os
-import sys;sys.path.append('../unisens')
 try:
     from unisens import CustomEntry, ValuesEntry, EventEntry, SignalEntry
-    from unisens import MiscEntry, CustomAttributes, Unisens
+    from unisens import MiscEntry, CustomAttributes, Unisens, FileEntry
+    from unisens import CsvFileEntry
 except:
     from entry import CustomEntry, ValuesEntry, EventEntry, SignalEntry
     from entry import MiscEntry, CustomAttributes
@@ -201,6 +201,9 @@ class Testing(unittest.TestCase):
                       'valid_signal.csv', 'trig_ref.csv', 'bp.csv',
                       'trig_test_osea_dry.csv', 'picture.jpg', 'default_ecg']:
             self.assertIn(name, u.entries)
+            
+        entry = u[0]
+        self.assertEqual(entry.height, '1.74m')
         
         entry = u.entries['customAttributes']
         self.assertEqual(entry.weight, '73kg')
@@ -363,10 +366,9 @@ class Testing(unittest.TestCase):
    
 
 
-    def test_save_data(self):
+    def test_save_signalentry(self):
         folder = os.path.join(self.tmpdir, 'data', 'record')
-        
-        
+
         for dtype in ['int16', 'uint8', 'float', 'int32', 'complex128']:
             u = Unisens(folder, makenew=True)
             data1 = (np.random.rand(5,500)*100).astype(dtype)
@@ -384,11 +386,46 @@ class Testing(unittest.TestCase):
         u = Unisens(folder, makenew=True)
         
         
+    def test_save_csvetry(self):
+        self.tmpdir = tempfile.mkdtemp(prefix='unisens')
+
+        folder = os.path.join(self.tmpdir, 'data', 'record')
         
+        u = Unisens(folder, makenew=True)
+        times = [[i*100 + float(np.random.rand(1)), f'trigger {i}'] for i in range(15)]
+        event = EventEntry(id='triggers.csv', parent=u, separator=',', decimalSeparator='.')
+        event.set_attrib('contentClass','trigger')
+        event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
+        event.set_data(times, contentClass='triggers', unit='ms')
+        u.add_entry(event)
+        u.save()
+        u2 = Unisens(folder)
+        event2 = u2['triggers.csv']
+        times2 = event2.get_data()
+        self.assertSequenceEqual(times, times2)
+
+        folder = os.path.join(self.tmpdir, 'data', 'record')
+        u = Unisens(folder, makenew=True)
+    
+        # now test with different separators        
+        u = Unisens(folder, makenew=True)
+        times = [[i*100 + float(np.random.rand(1)), f'trigger {i}'] for i in range(15)]
+        event = EventEntry(id='triggers.csv', parent=u, separator=';', decimalSeparator=',')
+        event.set_attrib('contentClass','trigger')
+        event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
+        event.set_data(times, contentClass='triggers', unit='ms')
+        u.add_entry(event)
+        u.save()
+        u2 = Unisens(folder)
+        event2 = u2['triggers.csv']
+        times2 = event2.get_data()
+        self.assertSequenceEqual(times, times2)
+
+
+    
     
 if __name__ == '__main__':
     unittest.main()
-    
 
 
 

@@ -22,7 +22,7 @@ class Entry():
     
     def __repr__(self):
         return "<{}({})>".format(self._name, self.attrib)
-    
+ 
     def __init__(self, attrib=None, parent='.'):
         if attrib is None: attrib=dict()
         self.attrib = attrib
@@ -30,6 +30,7 @@ class Entry():
         self._entries = list()
         self._folder = parent._folder if isinstance(parent, Entry) else parent
         self._name = lowercase(type(self).__name__)
+    
     
     def __setattr__(self, name:str, value:str):
         """
@@ -42,7 +43,6 @@ class Entry():
         if name not in methods and not name.startswith('_') and \
             isinstance(value, (int, float, bool, bytes, str)):
             self.set_attrib(name, value)
-
 
 
     def add_entry(self, entry:'Entry'):
@@ -58,6 +58,7 @@ class Entry():
         
         self._entries.append(entry)
         name = entry._name
+        
         # if an entry already exists with this exact name
         # we put the entry inside of a list and append the new entry
         # with the same name. This way all entries are saved
@@ -74,7 +75,6 @@ class Entry():
 
     def remove_entry(self, name):
         deleted = False
-        print(2, self._entries)
         for i, entry in enumerate(self._entries):
             if entry._name == name:
                 del self._entries[i]
@@ -161,21 +161,23 @@ class FileEntry(Entry):
         super().__init__(attrib=attrib, parent=parent, **kwargs)
         if 'id' in self.attrib:
             self._filename = os.path.join(self._folder, self.id)
-            self.set_attrib('id', self.id)
             if not os.path.exists(self._filename):
                 logging.error('File for {} does not exist'.format(self.id))               
         elif id:
             if os.path.splitext(str(id))[-1]=='':
                 logging.warning('id should be a filename, ie. .bin/.csv/...')
+            self._filename = os.path.join(self._folder, id)
             self.set_attrib('id', id)
         else:
             raise ValueError('id must be supplied')
-        
+        if isinstance(parent, Entry): parent.add_entry(self)
+
         
 class SignalEntry(FileEntry):
     
     def __init__(self, id=None,  attrib=None, parent='.', **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
+        
         
     def get_data(self, scaled:bool=True, return_type:str='numpy') -> np.array:
         """
@@ -198,6 +200,7 @@ class SignalEntry(FileEntry):
             data = (data * float(self.lsbValue))
         data = data.reshape([n_channels, -1])
         return data
+    
     
     def set_data(self, data:np.ndarray, dataType:str=None, ch_names:list=None, 
                        sampleRate:int=None, lsbValue:float=1, unit:str=None, 
@@ -258,7 +261,6 @@ class SignalEntry(FileEntry):
             
         # save data using numpy 
         data.tofile(file)
-        print(os.path.abspath(file))
         
         # add the file format description (dont understand why dtype isnt here)
         order = sys.byteorder.upper() # endianess
@@ -275,18 +277,46 @@ class SignalEntry(FileEntry):
 
 
 class CsvFileEntry(FileEntry):
-    def __init__(self, id=None, attrib=None, parent='.' , **kwargs):
+    def __init__(self, id=None, attrib=None, parent='.', 
+                 decimalSeparator=None, separator=None, **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
+        
+        if decimalSeparator is not None and separator is not None:
+            csvFileFormat = MiscEntry('csvFileFormat', )
+            csvFileFormat.set_attrib('decimalSeparator', decimalSeparator)
+            csvFileFormat.set_attrib('separator', separator)
+            self.add_entry(csvFileFormat)
+            
         if not 'csvFileFormat' in self.__dict__:
             logging.info(f'csvFileFormat information missing for {self.id},'\
                          ' assuming decimal=. and seperator=;')
             csvFileFormat = MiscEntry(name = 'csvFileFormat')
             csvFileFormat.set_attrib('decimal', '.')
             csvFileFormat.set_attrib('separator', ';')
-            self.add_entry(csvFileFormat)      
-
+            self.add_entry(csvFileFormat)
+    
+    def set_data(self, data:list, **kwargs):
+        assert 'csvFileFormat' in self.__dict__, 'csvFileFormat information'\
+                                    'missing: No separator and decimal set'
+        assert isinstance(data, list), 'data must be list of lists'
         
+        separator = self.csvFileFormat.separator
+        decimal = self.csvFileFormat.decimalSeparator
         
+        csv_string = ''
+        for line in data:
+            for element in line:
+                csv_string += element if isinstance(element, str) else \
+                              str(element).replace('.', decimal)
+                csv_string += separator         
+            csv_string += '\n'
+            
+        with open(self._filename, 'w') as f:
+            f.write(csv_string)
+            
+        for key in kwargs:
+            self.set_attrib(key, kwargs[key])
+        return self
         
     def get_data(self, mode:str='list'):
         """
@@ -332,14 +362,10 @@ class ValuesEntry(CsvFileEntry):
 
     
 class EventEntry(CsvFileEntry):
-    
     def __init__(self, id=None, attrib=None, parent='.' , **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
         
     
-        
-
-
 class CustomEntry(FileEntry):
     
     def __init__(self, id=None, **kwargs):
