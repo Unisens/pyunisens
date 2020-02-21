@@ -11,5 +11,6 @@ setup(name='pyunisens',
       packages=['unisens'],
       install_requires=[
          'numpy',
-         'pandas'],
+         'pandas',
+         'PIL'],
       zip_safe=False)
