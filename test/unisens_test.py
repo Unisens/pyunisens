@@ -5,14 +5,10 @@ Created on Sat Jan  4 16:37:07 2020
 @author: skjerns
 """
 import os
-try:
-    from unisens import CustomEntry, ValuesEntry, EventEntry, SignalEntry
-    from unisens import MiscEntry, CustomAttributes, Unisens, FileEntry
-    from unisens import CsvFileEntry
-except:
-    from entry import CustomEntry, ValuesEntry, EventEntry, SignalEntry
-    from entry import MiscEntry, CustomAttributes
-    
+from unisens import CustomEntry, ValuesEntry, EventEntry, SignalEntry
+from unisens import MiscEntry, CustomAttributes, Unisens, FileEntry
+from unisens import CsvFileEntry
+
 import unittest
 import shutil
 import tempfile
