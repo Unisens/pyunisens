@@ -13,7 +13,11 @@ from xml.etree.ElementTree import Element
 
 
 class Entry():
+    """
+    Hello, it's me, Entry
     
+    :param test:test
+    """
     def __len__(self):
         return len(self._entries)
     
@@ -361,6 +365,12 @@ class CsvFileEntry(FileEntry):
 
 
 class ValuesEntry(CsvFileEntry):
+    """
+    Hello, it's me, ValuesEntry
+    
+    :param test: test
+    """
+    
     def __init__(self, id=None, attrib=None, parent='.' , **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
 
