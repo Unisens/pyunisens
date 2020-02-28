@@ -7,10 +7,9 @@ Created on Mon Jan  6 21:16:58 2020
 import os, sys
 import numpy as np
 import logging
-from .utils import validkey, strip, lowercase
+from .utils import validkey, strip, lowercase, read_csv, write_csv
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
-
 
 class Entry():
     """
@@ -299,10 +298,18 @@ class CsvFileEntry(FileEntry):
             csvFileFormat.set_attrib('separator', ';')
             self.add_entry(csvFileFormat)
     
-    def set_data(self, data:list, **kwargs):
+    def set_data(self, data:list, comment=None, **kwargs):
+        """
+        Set data to this csv object.
+        
+        :param data: the data as list or np array
+        :param comment: a comment, that will be added to the first line with #
+        """
+        
         assert 'csvFileFormat' in self.__dict__, 'csvFileFormat information'\
                                     'missing: No separator and decimal set'
         assert isinstance(data,(list,np.ndarray)),'data must be list of lists'
+        assert comment is None or isinstance(comment, str), 'c must be string'
         
         separator = self.csvFileFormat.separator
         decimal = self.csvFileFormat.decimalSeparator
@@ -311,7 +318,11 @@ class CsvFileEntry(FileEntry):
         if isinstance(data, np.ndarray):
             data = [[x for x in d] for d in data]
         
-        csv_string = ''
+        csv_string = '' 
+        if comment is not None:
+            comment = comment.split('\n')
+            csv_string += '# ' + '\n# '.join(comment)
+            
         for line in data:
             for element in line:
                 csv_string += element if isinstance(element, str) else \
@@ -349,7 +360,6 @@ class CsvFileEntry(FileEntry):
             lines = pd.read_csv(self._filename, sep=separator,
                                header=None, index_col=None)
         elif mode == 'list':
-
             with open(self._filename, 'r') as f:
                 data = f.read()
                 data = data.replace('\r', '') # remove unix linebreaks
@@ -426,7 +436,6 @@ class CustomAttributes(Entry):
         if entry._name != 'customAttribute':
             logging.error('Can only add customAttribute type')
             return
-        e.append(entry)
         self.set_attrib(entry.key, entry.value)
   
 class MiscEntry(Entry):
@@ -441,15 +450,7 @@ class CustomAttribute(MiscEntry):
         return MiscEntry('customAttribute', **kwargs)
 
 
-e=[]
-if __name__ == '__main__':
-    from unisens import Unisens
-    u = Unisens('C:/Users/Simon/Desktop/pyUnisens/unisens/test/Example_001')
-            
-            
-            
-            
-            
+
         
         
         
