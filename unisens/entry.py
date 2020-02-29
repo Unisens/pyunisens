@@ -7,7 +7,8 @@ Created on Mon Jan  6 21:16:58 2020
 import os, sys
 import numpy as np
 import logging
-from .utils import validkey, strip, lowercase, read_csv, write_csv
+from .utils import validkey, strip, lowercase
+from .utils import read_csv, write_csv
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
 
@@ -276,13 +277,15 @@ class SignalEntry(FileEntry):
         if comment is not None: self.set_attrib('comment', comment)
         if contentClass is not None: self.set_attrib('contentClass', contentClass)
         if dataType is not None: self.set_attrib('dataType', dataType)
-        # raise NotImplementedError
-
+        return self        
 
 class CsvFileEntry(FileEntry):
     def __init__(self, id=None, attrib=None, parent='.', 
                  decimalSeparator=None, separator=None, **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
+        
+        if not id.endswith('csv'):
+            logging.warn(f'id "{id}" does not end in .csv')
         
         if decimalSeparator is not None and separator is not None:
             csvFileFormat = MiscEntry('csvFileFormat', )
@@ -294,7 +297,7 @@ class CsvFileEntry(FileEntry):
             logging.info(f'csvFileFormat information missing for {self.id},'\
                          ' assuming decimal=. and seperator=;')
             csvFileFormat = MiscEntry(name = 'csvFileFormat')
-            csvFileFormat.set_attrib('decimal', '.')
+            csvFileFormat.set_attrib('decimalSeparator', '.')
             csvFileFormat.set_attrib('separator', ';')
             self.add_entry(csvFileFormat)
     
@@ -310,28 +313,13 @@ class CsvFileEntry(FileEntry):
                                     'missing: No separator and decimal set'
         assert isinstance(data,(list,np.ndarray)),'data must be list of lists'
         assert comment is None or isinstance(comment, str), 'c must be string'
+
         
-        separator = self.csvFileFormat.separator
-        decimal = self.csvFileFormat.decimalSeparator
+        sep = self.csvFileFormat.separator
+        dec = self.csvFileFormat.decimalSeparator
         
-        # data can be present in nd arrays.
-        if isinstance(data, np.ndarray):
-            data = [[x for x in d] for d in data]
-        
-        csv_string = '' 
-        if comment is not None:
-            comment = comment.split('\n')
-            csv_string += '# ' + '\n# '.join(comment)
-            
-        for line in data:
-            for element in line:
-                csv_string += element if isinstance(element, str) else \
-                              str(element).replace('.', decimal)
-                csv_string += separator         
-            csv_string += '\n'
-            
-        with open(self._filename, 'w') as f:
-            f.write(csv_string)
+        write_csv(self._filename, data, comment=comment, 
+                  sep=sep, decimal_sep=dec)
             
         for key in kwargs:
             self.set_attrib(key, kwargs[key])
@@ -345,29 +333,18 @@ class CsvFileEntry(FileEntry):
                      valid options: ['list', 'pandas', 'numpy']
         :returns: a list, dataframe or numpy array
         """
-        separator = self.csvFileFormat.separator
-        decimal = self.csvFileFormat.decimalSeparator
-        def make_digit(string): # helper function to convert to numbers
-            if string.isdigit(): return int(string)
-            try: return float(string.replace(decimal, '.'))
-            except: return string
+        sep = self.csvFileFormat.separator
+        dec = self.csvFileFormat.decimalSeparator
         
         if mode in ('numpy', 'np', 'array'):
-            lines = np.genfromtxt(self._filename, delimiter=separator, 
+            lines = np.genfromtxt(self._filename, delimiter=sep, 
                                  dtype=str)
         elif mode in ('pandas', 'pd', 'dataframe'):
             import pandas as pd
-            lines = pd.read_csv(self._filename, sep=separator,
+            lines = pd.read_csv(self._filename, sep=sep,
                                header=None, index_col=None)
         elif mode == 'list':
-            with open(self._filename, 'r') as f:
-                data = f.read()
-                data = data.replace('\r', '') # remove unix linebreaks
-                lines = data.split('\n')
-                lines = [line.split(separator) for line in lines]
-                lines = [[x for x in d if not x==''] for d in lines]
-                lines = [x for x in lines if x!=[]]
-                lines = [[make_digit(e) for e in entry] for entry in lines]
+            lines = read_csv(self._filename, sep=sep, decimal_sep=dec)
         else:
             raise ValueError('Invalid mode: {}, select from'
                              '["numpy", "pandas", "list"]'.format(mode))
@@ -395,24 +372,117 @@ class CustomEntry(FileEntry):
     def __init__(self, id=None, **kwargs):
         super().__init__(id=id, **kwargs)      
         
-    def get_data(self, dtype='binary'):
+    def get_data(self, dtype='auto'):
         """
         Will load the binary data of this CustomEntry.
-        Has builtin functionality to load images using PIL
         
-        :param dtype: binary or image.
-        :returns: the binary data or an PIL.Image
+        The following datatypes can be loaded automatically:
+            text:  .txt .csv .ini
+            image: .jpeg .jpg .bmp .png .tif .gif
+            json:  .json (using json-tricks or json)
+            numpy: .npy
+            binary: anything else
+        
+        :param dtype: [binary, image, text, numpy, json]
+        :returns: the binary data or the otherwise loaded data
         """
+        try:
+            import json_tricks as json
+        except:
+            import json
+            logging.warn('json_tricks not installed, can\'t load numpy array '\
+                         'automatically. install with pip install json-tricks')
+
+        if dtype=='auto':
+            ext = os.path.splitext(self._filename)[-1].lower()
+            txt_exts = ['.txt', '.csv', '.ini']
+            img_exts = ['.jpeg', '.jpg', '.bmp', '.png', '.tif', '.gif']
+            
+            if ext in img_exts:
+                dtype='image'
+            elif ext in txt_exts:
+                dtype='text'
+            elif ext=='.json':
+                dtype='json'
+            elif ext=='.npy':
+                dtype='numpy'
+            else:
+                dtype='binary'
+                
         if dtype=='binary':
             with open(self._filename, 'rb') as f:
                 data = f.read()
+        elif dtype=='text':
+            with open(self._filename, 'r') as f:
+                data = f.read()
         elif dtype=='image':
-            from PIL import Image
-            data = Image.open(self._filename)
+            try: import imageio
+            except: logging.error('can\'t load: imageio not installed. \n'\
+                                  'run pip install imageio')
+            data = imageio.imread(self._filename)
+        elif dtype=='json':
+            with open(self._filename, 'r') as f:
+                data = json.load(f)
+        elif dtype=='numpy':
+            data = np.load(self._filename)
         else:
             raise ValueError('unknown dtype {}'.format(dtype))
+            
         return data
+    
+    
+    def set_data(self, data, dtype='auto'):
+        """
+        Will save custom data to disk.
         
+        :param data: the data to be saved to disc.
+        :param dtype: binary or image.
+        :returns: the binary data or an PIL.Image
+        """
+        try:
+            import json_tricks as json
+        except:
+            import json
+            logging.warn('json_tricks not installed, can\'t save numpy array'\
+                         'automatically. install with pip install json-tricks')
+        
+        raise NotImplementedError
+        if dtype=='auto':
+            ext = os.path.splitext(self._filename)[-1].lower()
+            txt_exts = ['.txt', '.csv', '.ini']
+            img_exts = ['.jpeg', '.jpg', '.bmp', '.png', '.tif', '.gif']
+            
+            if ext in img_exts:
+                dtype='image'
+            elif ext in txt_exts:
+                dtype='text'
+            elif ext=='.json':
+                dtype='json'
+            elif ext='.npy':
+                dtype='numpy'
+            else:
+                dtype='binary'
+                
+        if dtype=='binary':
+            with open(self._filename, 'wb') as f:
+                f.write(data)
+        elif dtype=='text':
+            with open(self._filename, 'w') as f:
+                f.write(data)
+        elif dtype=='image':
+            try: import imageio
+            except: logging.error('can\'t save: imageio not installed. \n'\
+                                  'run pip install imageio')
+            imageio.imsave(self._filename, data)
+        elif dtype=='json':
+            with open(self._filename, 'w') as f:
+                data = json.load(f)
+        elif dtype=='numpy':
+            data = np.save(self._filename, data)
+        else:
+            raise ValueError('unknown dtype {}'.format(dtype))
+        return self
+    
     
 class CustomAttributes(Entry):
     def __init__(self, key:str=None, value:str=None, **kwargs):
@@ -437,6 +507,7 @@ class CustomAttributes(Entry):
             logging.error('Can only add customAttribute type')
             return
         self.set_attrib(entry.key, entry.value)
+        
   
 class MiscEntry(Entry):
     def __init__(self, name:str, key:str=None, value:str=None, **kwargs):

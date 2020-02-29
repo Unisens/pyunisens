@@ -29,6 +29,7 @@ todo: implement update
 todo: add group
 todo: csvFileFormat standard
 todo: add data
+todo: add auto-save?
 
 @author: skjerns
 """
@@ -116,6 +117,7 @@ class Unisens(Entry):
             self.set_attrib('measurementId', measurementId)
             self.set_attrib('timestampStart', timestampStart)
             self.set_attrib('version', '2.0')
+            self.save()
             # self.set_attrib('xsi:schemaLocation',"http://www.unisens.org/unisens2.0"+\
             #               " http://www.unisens.org/unisens2.0/unisens.xsd")
             # self.set_attrib('xmlns',"http://www.unisens.org/unisens2.0")
