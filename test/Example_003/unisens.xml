@@ -25,7 +25,7 @@
     <channel name="y" />
     <channel name="z" />
   </signalEntry>
-  <eventEntry comment="Reference trigger list" contentClass="TRIGGER" id="trigger_reference.csv" sampleRate="1000" source="PADSY / M. Kirst" typeLength="1">
+  <eventEntry comment="Reference trigger list" contentClass="TRIGGER" id="trigger_reference.csv" sampleRate="0.1" source="PADSY / M. Kirst" typeLength="1">
     <csvFileFormat separator=";" />
   </eventEntry>
   <customEntry id="P1010061.JPG" contentClass="IMAGE">

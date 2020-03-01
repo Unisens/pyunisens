@@ -137,8 +137,7 @@ class Entry():
 
     def to_element(self):
         element = Element(self._name, attrib=self.attrib.copy())
-        element.tail = '\n  \n  \n  '
-        element.text = '\n'
+        element.tail = '\n'
         for subelement in self._entries:
             element.append(subelement.to_element())
         return element
@@ -196,7 +195,7 @@ class SignalEntry(FileEntry):
                             numpy will be as plain numpy array without ch_names
         """
         if return_type!='numpy': raise NotImplementedError
-        n_channels = len(self.channel) if isinstance(self.channel,list) else 1
+        n_channels = len(self.channel) if isinstance(self.channel, list) else 1
         dtypestr = self.dataType.lower()
         dtype = np.__dict__.get(dtypestr, f'UNKOWN_DATATYPE: {dtypestr}')
         data = np.fromfile(self._filename, dtype=dtype)
@@ -208,7 +207,8 @@ class SignalEntry(FileEntry):
     
     def set_data(self, data:np.ndarray, dataType:str=None, ch_names:list=None, 
                        sampleRate:int=None, lsbValue:float=1, unit:str=None, 
-                       comment:str=None, contentClass:str=None):
+                       comment:str=None, contentClass:str=None,
+                       adcResolution:int=str):
         """
         Set the data that is connected to this SignalEntry.
         The data will in any case be saved with Endianness LITTLE,
@@ -232,12 +232,30 @@ class SignalEntry(FileEntry):
         if isinstance(data, list):
             # if the list entries are arrays, we can infer the dtype from them
             if isinstance(data[0], np.ndarray) and dataType is None:
-                dataType = str(data[0].dtype).upper()
-            data = np.array(data, dtype=dataType)
-        else:
-            # infer dtype from array if not indicated
-            if dataType is None:
-                dataType = str(data.dtype).upper()
+                dtype = str(data[0].dtype)
+            data = np.array(data, dtype=dtype)
+
+
+        #### dtype inference start
+        dtype_mapping = {'float32': 'float',
+                         'float64': 'double',
+                         'int': 'int32'}
+
+        if dataType is None:
+            dataType = str(data.dtype).upper()
+
+
+        dataType = dtype_mapping.get(dataType.lower(), dataType)
+        # infer dtype from array if not indicated
+        allowed_dtypes = ['DOUBLE', 'FLOAT', 'INT16', 'INT32', 
+                          'INT8', 'UINT16', 'UINT32', 'UINT8']
+        assert dataType.upper() in allowed_dtypes,\
+                f'{dataType} is not in {allowed_dtypes}'
+
+        #### dtype inference end
+                
+        # if we get a string supplied, we convert to list
+        if isinstance(ch_names, str): ch_names = [ch_names]
         
         if ch_names is None and hasattr(self, 'channel') and\
            len(self.channel)==len(data): 
@@ -245,10 +263,10 @@ class SignalEntry(FileEntry):
                pass
         elif ch_names is not None: 
             # this means new channel names are indicated and will overwrite.
-            assert len(ch_names)==len(data)
-            if hasattr(self.channel):
+            assert len(ch_names)==len(data), f'len {ch_names}!={len(data)}'
+            if hasattr(self, 'channel'):
                 logging.warn('Channels present will be overwritten')
-            self.remove_entry('channel')
+                self.remove_entry('channel')
             for name in ch_names:
                 channel = MiscEntry('channel', key='name', value=name)
                 self.add_entry(channel)
@@ -277,6 +295,7 @@ class SignalEntry(FileEntry):
         if comment is not None: self.set_attrib('comment', comment)
         if contentClass is not None: self.set_attrib('contentClass', contentClass)
         if dataType is not None: self.set_attrib('dataType', dataType)
+        if adcResolution is not None: self.set_attrib('adcResolution',adcResolution)
         return self        
 
 class CsvFileEntry(FileEntry):
@@ -301,7 +320,7 @@ class CsvFileEntry(FileEntry):
             csvFileFormat.set_attrib('separator', ';')
             self.add_entry(csvFileFormat)
     
-    def set_data(self, data:list, comment=None, **kwargs):
+    def set_data(self, data:list, **kwargs):
         """
         Set data to this csv object.
         
@@ -311,18 +330,20 @@ class CsvFileEntry(FileEntry):
         
         assert 'csvFileFormat' in self.__dict__, 'csvFileFormat information'\
                                     'missing: No separator and decimal set'
-        assert isinstance(data,(list,np.ndarray)),'data must be list of lists'
-        assert comment is None or isinstance(comment, str), 'c must be string'
-
+        assert isinstance(data, (list,np.ndarray)),'data must be list of lists'
         
         sep = self.csvFileFormat.separator
         dec = self.csvFileFormat.decimalSeparator
         
-        write_csv(self._filename, data, comment=comment, 
-                  sep=sep, decimal_sep=dec)
+        n_cols = len(data[0])-1
+        if n_cols<2: logging.warn('Should supply at least two columns: '\
+                                  'time and data')
+        
+        write_csv(self._filename, data, sep=sep, decimal_sep=dec)
             
         for key in kwargs:
             self.set_attrib(key, kwargs[key])
+        
         return self
         
     def get_data(self, mode:str='list'):
@@ -360,6 +381,38 @@ class ValuesEntry(CsvFileEntry):
     
     def __init__(self, id=None, attrib=None, parent='.' , **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
+        
+    def set_data(self, data:list, ch_names=None, **kwargs):
+        # if we get a string supplied, we convert to list
+        super().set_data(data, **kwargs) 
+        
+        if isinstance(ch_names, str): ch_names = [ch_names]
+        n_cols = len(data[0])-1
+
+        if ch_names is None and hasattr(self, 'channel') and\
+           len(self.channel)==n_cols: 
+               # this means channel information is present and matches array
+               pass
+        elif ch_names is not None: 
+            # this means new channel names are indicated and will overwrite.
+            assert len(ch_names)==n_cols, f'len {ch_names}!={len(data)}'
+            if hasattr(self, 'channel'):
+                logging.warn('Channels present will be overwritten')
+                self.remove_entry('channel')
+            for name in ch_names:
+                channel = MiscEntry('channel', key='name', value=name)
+                self.add_entry(channel)
+        elif ch_names is None and not hasattr(self, 'channel'):
+            # this means no channel names are indicated and none exist
+            # we create new generic names for the channels
+            logging.info('No channel names indicated, will use generic names')
+            for i in range(n_cols):
+                channel = MiscEntry('channel', key='name', value=f'ch_{i}')
+                self.add_entry(channel)
+        else:
+            # this means there are channel names there but do not match n_data
+            raise ValueError('Must indicate channel names')
+        
 
     
 class EventEntry(CsvFileEntry):
@@ -458,7 +511,7 @@ class CustomEntry(FileEntry):
                 dtype='text'
             elif ext=='.json':
                 dtype='json'
-            elif ext='.npy':
+            elif ext=='.npy':
                 dtype='numpy'
             else:
                 dtype='binary'

@@ -30,6 +30,7 @@ todo: add group
 todo: csvFileFormat standard
 todo: add data
 todo: add auto-save?
+todo: channel to valuesentry
 
 @author: skjerns
 """
@@ -43,7 +44,7 @@ from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
 from .entry import Entry, FileEntry, ValuesEntry, SignalEntry, MiscEntry
 from .entry import EventEntry, CustomEntry, CustomAttributes
-from .utils import AttrDict, strip, validkey, lowercase, make_key
+from .utils import AttrDict, strip, validkey, lowercase, make_key, indent
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
   
 
@@ -231,10 +232,11 @@ class Unisens(Entry):
         """
         if folder is None:
             folder = self._folder
+        file = os.path.join(folder, filename)
         ET.register_namespace("", "http://www.unisens.org/unisens2.0")
         element = self.to_element()
+        indent(element)
         et = ET.ElementTree(element)
-        file = os.path.join(folder, filename)
         et.write(file, xml_declaration=True, default_namespace='', 
                  encoding='utf-8')
         return self
