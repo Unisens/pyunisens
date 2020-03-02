@@ -8,15 +8,14 @@ python:
 
 install:
 - pip install -r requirements.txt
-- pip install pytest pytest-cov codecov imageio json-tricks
+- pip install pytest pytest-cov codecov coveralls imageio json-tricks
 - pip install -e . -v
 
 script:
 - pytest ./test/unisens_test.py
-- coverage run ./test/unisens_test.py
 
 after_success:
-- codecov
+- coveralls
 
 deploy:
   provider: pypi
