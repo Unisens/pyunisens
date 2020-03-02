@@ -13,15 +13,7 @@ and archiving sensor data from various recording systems. Other main requirement
 were a human readable header and the use of future-proof standards like XML.
 
 
-todo: multi channel
-todo: meta information nested
-todo: XML
-todo: init new object
-todo: attrib + items unpack
 todo: summary
-todo: correct wdir
-todo: edf2unisens
-todo: __set attr__ for entry inhertance, update attrib
 todo: plotting
 todo: example file
 todo: impolement del__
@@ -29,23 +21,18 @@ todo: implement update
 todo: add group
 todo: csvFileFormat standard
 todo: add data
-todo: add auto-save?
 todo: channel to valuesentry
 
 @author: skjerns
 """
-
-
 import os
 import logging
 import datetime
-import numpy as np
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
 from .entry import Entry, FileEntry, ValuesEntry, SignalEntry, MiscEntry
 from .entry import EventEntry, CustomEntry, CustomAttributes
 from .utils import AttrDict, strip, validkey, lowercase, make_key, indent
-logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
   
 
 
@@ -80,8 +67,8 @@ class Unisens(Entry):
                         If no unisens.xml is present and new=False
     :param attrib: The attribute 
     """
-    def __init__(self, folder, makenew=False, comment:str='', duration:int=0, 
-                 measurementId:str='NaN', timestampStart=''):
+    def __init__(self, folder, makenew=False, autosave=False, comment:str='', 
+                 duration:int=0, measurementId:str='NaN', timestampStart=''):
         """
         Initializes a Unisens object.
         If a unisens.xml file is already present in the folder, it will load
@@ -94,10 +81,11 @@ class Unisens(Entry):
         If no unisens.xml is present and new=False
         :param attrib: The attribute 
         """
-        os.makedirs(folder, exist_ok=True)
-        folder = os.path.dirname(folder + '/')
         self._folder = folder
         self._file = os.path.join(folder, 'unisens.xml')
+        os.makedirs(folder, exist_ok=True)
+        folder = os.path.dirname(folder + '/')
+
         self.entries = AttrDict()
         self._entries = list()
         self._name = 'unisens'
@@ -118,11 +106,12 @@ class Unisens(Entry):
             self.set_attrib('measurementId', measurementId)
             self.set_attrib('timestampStart', timestampStart)
             self.set_attrib('version', '2.0')
-            self.save()
             # self.set_attrib('xsi:schemaLocation',"http://www.unisens.org/unisens2.0"+\
             #               " http://www.unisens.org/unisens2.0/unisens.xsd")
             # self.set_attrib('xmlns',"http://www.unisens.org/unisens2.0")
             # self.set_attrib('xmlns:xsi', "http://www.w3.org/2001/XMLSchema-instance")
+        self._autosave_enabled = autosave
+        self._autosave()
         
     def __setattr__(self, name, value):
         """
@@ -165,8 +154,6 @@ class Unisens(Entry):
               version)
         return s
     
-    def add_signal(self, data:np.ndarray):
-        raise NotImplementedError
     
     def add_entry(self, entry:Entry):
         """
@@ -242,6 +229,12 @@ class Unisens(Entry):
         return self
     
     
+    def _autosave(self):
+        
+        if hasattr(self, '_autosave_enabled') and self._autosave_enabled:
+            self.save()
+            
+            
     def read_unisens(self, folder:str) -> Entry:
         """
         Loads an XML Unisens file into this Unisens object.
@@ -251,7 +244,7 @@ class Unisens(Entry):
         :param folder: folder where the unisens.xml is located. 
         :returns: self
         """
-        folder += '/' # to avoid any errors and confusion, append /
+        folder += '/' # to avoid any ospath errors and confusion, append /
         file = os.path.join(os.path.dirname(folder), 'unisens.xml')
         if not os.path.exists(file):
             raise FileNotFoundError('{} does not exist'.format(folder))

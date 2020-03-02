@@ -164,6 +164,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(len(u.entries), 4)
         u.save()
         
+        
         u = Unisens(folder)
         self.assertEqual(len(u), 4)
         
@@ -176,7 +177,26 @@ class Testing(unittest.TestCase):
         u.add_entry(misc)
         u.add_entry(customattr)
         self.assertEqual(len(u), 2)
+
+    def test_unisens_autosave(self):
         
+        folder = os.path.join(self.tmpdir, 'data', 'record')
+        u = Unisens(folder, makenew=True, autosave=True)
+        
+        for i,entrytype in enumerate([CustomEntry, ValuesEntry,
+                                      SignalEntry, EventEntry]):
+            entry = entrytype(parent=folder, id='test'+str(i))
+            entry.set_attrib('key1', 'value1')
+            entry.key2 = 'value2'
+            u.add_entry(entry)
+
+        self.assertEqual(len(u), 4)
+        self.assertEqual(len(u.entries), 4)
+    
+        u = Unisens(folder)
+        self.assertEqual(len(u), 4)
+        
+ 
         
     def test_load_examples(self):
         if False:
@@ -353,10 +373,10 @@ class Testing(unittest.TestCase):
         self.assertEqual(data[0][0], 10)
         self.assertEqual(data[0][1], 4521)
         
-        events = u['picture.jpg']
-        data = events.get_data()       
+        custom = u['picture.jpg']
+        data = custom.get_data(dtype='binary')       
         self.assertEqual(len(data), 724116)
-        data = events.get_data(dtype='image')       
+        data = custom.get_data(dtype='image')       
         data = np.asarray(data)
         self.assertEqual(data.sum(), 706817789)
    
@@ -365,7 +385,7 @@ class Testing(unittest.TestCase):
     def test_save_signalentry(self):
         folder = os.path.join(self.tmpdir, 'data', 'record')
 
-        for dtype in ['int16', 'uint8', 'float', 'int32', 'complex128']:
+        for dtype in ['int16', 'uint8', 'float', 'int32']:
             u = Unisens(folder, makenew=True)
             data1 = (np.random.rand(5,500)*100).astype(dtype)
             signal = SignalEntry(id='signal.bin', parent=u)

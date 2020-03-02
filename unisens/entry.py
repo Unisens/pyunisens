@@ -27,13 +27,18 @@ class Entry():
     def __repr__(self):
         return "<{}({})>".format(self._name, self.attrib)
  
-    def __init__(self, attrib=None, parent='.'):
-        if attrib is None: attrib=dict()
+    def __init__(self, attrib=None, parent='.', **kwargs):
+        if attrib is None: 
+            attrib=dict()
         self.attrib = attrib
         self.__dict__.update(self.attrib)
         self._entries = list()
         self._folder = parent._folder if isinstance(parent, Entry) else parent
+        self._parent = parent if isinstance(parent, Entry) else None
         self._name = lowercase(type(self).__name__)
+        for key in kwargs:
+            self.key = kwargs[key]
+        self._autosave()
     
     
     def __setattr__(self, name:str, value:str):
@@ -48,6 +53,17 @@ class Entry():
             isinstance(value, (int, float, bool, bytes, str)):
             self.set_attrib(name, value)
 
+    def _autosave(self):
+        """
+        if autosave is enabled, this function will call the autosave
+        function of parents until the Unisens object is reached and
+        then save when anything is changed.
+        """
+        try:
+            if self._parent is not None:
+                self._parent._autosave()
+        except:
+            pass
 
     def add_entry(self, entry:'Entry'):
         
@@ -74,6 +90,7 @@ class Entry():
                 self.__dict__[name].append(entry)
         else:
             self.__dict__[entry._name] = entry
+        self._autosave()
         return self
 
 
@@ -90,11 +107,17 @@ class Entry():
                 try: del self.__dict__[name]
                 except: pass
                 deleted = True
-            if deleted: return
+            if deleted: 
+                self._autosave()
+                return
         if name in self.__dict__:
             del self.__dict__[name]
             deleted = True
-        if deleted: return
+            
+        if deleted: 
+            self._autosave()
+            return
+        
         raise Exception(f'cannot find entry {name}')
 
 
@@ -119,6 +142,7 @@ class Entry():
         name = validkey(name)
         self.attrib[name] = value
         self.__dict__.update(self.attrib)
+        self._autosave()
         return self
     
     def remove_attr(self, name:str):
@@ -132,6 +156,7 @@ class Entry():
             del self.__dict__[name]
         else:
             logging.error('{} not in attrib'.format(name))
+        self._autosave()
         return self           
         
 
@@ -165,7 +190,8 @@ class FileEntry(Entry):
         if 'id' in self.attrib:
             self._filename = os.path.join(self._folder, self.id)
             if not os.path.exists(self._filename):
-                logging.error('File for {} does not exist'.format(self.id))               
+                logging.error('File for {} does not exist'.format(self.id))     
+            self.set_attrib('id', self.attrib['id'])
         elif id:
             if os.path.splitext(str(id))[-1]=='':
                 logging.warning('id should be a filename, ie. .bin/.csv/...')
@@ -296,18 +322,20 @@ class SignalEntry(FileEntry):
         if contentClass is not None: self.set_attrib('contentClass', contentClass)
         if dataType is not None: self.set_attrib('dataType', dataType)
         if adcResolution is not None: self.set_attrib('adcResolution',adcResolution)
+        self._autosave()
         return self        
 
 class CsvFileEntry(FileEntry):
+    
     def __init__(self, id=None, attrib=None, parent='.', 
-                 decimalSeparator=None, separator=None, **kwargs):
+                 decimalSeparator='.', separator=';', **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
-        
-        if not id.endswith('csv'):
+
+        if not self.id.endswith('csv'):
             logging.warn(f'id "{id}" does not end in .csv')
         
         if decimalSeparator is not None and separator is not None:
-            csvFileFormat = MiscEntry('csvFileFormat', )
+            csvFileFormat = MiscEntry('csvFileFormat', parent=self)
             csvFileFormat.set_attrib('decimalSeparator', decimalSeparator)
             csvFileFormat.set_attrib('separator', separator)
             self.add_entry(csvFileFormat)
@@ -315,7 +343,7 @@ class CsvFileEntry(FileEntry):
         if not 'csvFileFormat' in self.__dict__:
             logging.info(f'csvFileFormat information missing for {self.id},'\
                          ' assuming decimal=. and seperator=;')
-            csvFileFormat = MiscEntry(name = 'csvFileFormat')
+            csvFileFormat = MiscEntry(name = 'csvFileFormat', parent=self)
             csvFileFormat.set_attrib('decimalSeparator', '.')
             csvFileFormat.set_attrib('separator', ';')
             self.add_entry(csvFileFormat)
@@ -335,7 +363,7 @@ class CsvFileEntry(FileEntry):
         sep = self.csvFileFormat.separator
         dec = self.csvFileFormat.decimalSeparator
         
-        n_cols = len(data[0])-1
+        n_cols = len(data[0])
         if n_cols<2: logging.warn('Should supply at least two columns: '\
                                   'time and data')
         
@@ -343,7 +371,7 @@ class CsvFileEntry(FileEntry):
             
         for key in kwargs:
             self.set_attrib(key, kwargs[key])
-        
+        self._autosave()
         return self
         
     def get_data(self, mode:str='list'):
@@ -365,7 +393,8 @@ class CsvFileEntry(FileEntry):
             lines = pd.read_csv(self._filename, sep=sep,
                                header=None, index_col=None)
         elif mode == 'list':
-            lines = read_csv(self._filename, sep=sep, decimal_sep=dec)
+            lines = read_csv(self._filename, sep=sep, decimal_sep=dec,
+                             convert_nums=True)
         else:
             raise ValueError('Invalid mode: {}, select from'
                              '["numpy", "pandas", "list"]'.format(mode))
@@ -412,7 +441,8 @@ class ValuesEntry(CsvFileEntry):
         else:
             # this means there are channel names there but do not match n_data
             raise ValueError('Must indicate channel names')
-        
+        self._autosave()
+        return self
 
     
 class EventEntry(CsvFileEntry):
@@ -423,7 +453,8 @@ class EventEntry(CsvFileEntry):
 class CustomEntry(FileEntry):
     
     def __init__(self, id=None, **kwargs):
-        super().__init__(id=id, **kwargs)      
+        super().__init__(id=id, **kwargs)  
+        self._autosave()
         
     def get_data(self, dtype='auto'):
         """
@@ -484,7 +515,7 @@ class CustomEntry(FileEntry):
         return data
     
     
-    def set_data(self, data, dtype='auto'):
+    def set_data(self, data, dtype='auto', **kwargs):
         """
         Will save custom data to disk.
         
@@ -538,6 +569,10 @@ class CustomEntry(FileEntry):
             data = np.save(self._filename, data)
         else:
             raise ValueError('unknown dtype {}'.format(dtype))
+            
+        for key in kwargs:
+            self.set_attrib(key, kwargs[key])
+        self._autosave()
         return self
     
     
@@ -564,6 +599,7 @@ class CustomAttributes(Entry):
             logging.error('Can only add customAttribute type')
             return
         self.set_attrib(entry.key, entry.value)
+        self._autosave()
         
   
 class MiscEntry(Entry):
@@ -572,7 +608,8 @@ class MiscEntry(Entry):
         self._name = strip(name)
         if key and value:
             self.set_attrib(key, value)
-            
+        self._autosave()
+        
 class CustomAttribute(MiscEntry):
     def __new__(*args,**kwargs):
         return MiscEntry('customAttribute', **kwargs)
