@@ -1,27 +1,22 @@
 language: python
-
 python:
 - '3.6'
 - '3.7'
 - '3.8'
 - 3.8-dev
-
 install:
 - pip install -r requirements.txt
 - pip install pytest pytest-cov codecov coveralls imageio json-tricks
 - pip install -e . -v
-
 script:
 - pytest ./test/unisens_test.py --cov=unisens/
-
 after_success:
 - coveralls
-
 deploy:
   provider: pypi
-  username: "skjerns"
+  username: skjerns
   password:
-    secure: oLsHbWnUoGQ+XuTdd3lx1Kz+JxUOPaVb0+0uQ+LAq+X1cCtvsWGuhHHGyyOWJC7Zjgpq0jZWulDO57jJKMbZ0+qAVCYOgiiRo8ZsBVZVUQaDsWXCsdffn/UQm8kni8EXHvMqLeCzWrDyhtqqbnxm6fSeAYiTXH23UFezod4zesf6Jwl9EUh2Yz2pk1jESMYPWIpLsFhgXQjxPJUc/u0Ivjs33Ba/2b0XIlXy/Ay9gUp6rrM+QjXP67Gq4kIiNLhW8WZJ/7hW1Mx4hzO+q1ZDG6abFzu7PvWjqndrMiFSoUG4ZEyn+EGQ+GyCUfKoFEpcbB8S/+jRyVUbOBoqfNYFBNzM5dtNB+6cpimpRxVddyko2+CThjMll8OGEvObcRtwE01ywZrNUQ8Adce5BXelap3PXRHB5+FtxTqgNZ4TQrfrJFri5rFQ19Sy4zLlR9AFZYzVGqX5q4Vm+oXCVeSgyyAI2GlWeLyHC/zpb0COtEVOHPnwcBKD7s/vIv/VhQY2bxh1M6Eu0ASuwJlzqmgigVf37bWynLBDF0Db1+1C2HFZI5c5JUhfp9McD+b9+w2p1PNWAsODPLRH06rVabmeMRBIuJyxkfVlG2ni4jZVHCNvipv6aMe9syWJmTkL6ybuCtODw1p+QuKZz6rec/7nN7nCGE17sjFsFPPtoncgDwc=
+    secure: EaKkgpyjBh3ahWAB/SBwklHkPRaJAXjKUvomsg+q2DZ03W10IaFzLmABdCBXMwopSppqDSRUa/XrpdFRvCh9TGmQzhKxtkMwEe9EUbTY0Mhi5SC4Pp3bmWgm60DcKJ9Hm8hjWa0hyH5e2N44Xq210mFRSZUD4kVMSEBsSIsb6aSK9lhMCAZPipsZWSbwrAkWjfm0SC+V445PdczdzCDIr6bchGo2iDclhGX2aYdxyJk2QNAtKkE6Ct2vA0HJ1W2OcAsCB/WzqNzPHZegrb6YJtQybfnCnyzMF+3v9svgzKqFo9uj4oB4RlDJFEE9LMyAVz3aXFNo+VU4ahdh4a3nP4TBGNNrQVM7mPkY5Jl/rwQhBeI5+rQPFilbzloYxHbhKO5CBP6z/h0QBjdIzcfdhD2+1IJ9OPZJay0DQU6nIjcdVvB0ccwB9fUDXYj/2fwP6r/y3OiVbyTvBdgW07ua4OD+FlF3N90thtQBPiRpff8LS9CSQc+s/UFbHJs8RYjo4ZH8aklBQUex42gsCkOCNeWHYt2Xs3GghrTo7RQYX/WavtFtI+65xUy0TRJEnKRKJMAN5LM+guyayWzXODYc+COdT6d/qlUGCpCJtCpQL0T0oGZErie5NUQt9zJlGdusw/MveP6LC8zWAKIrd+aYilIaOIqbjTC2tIIxCDJCO6c=
   edge: true
   on:
     tags: true
