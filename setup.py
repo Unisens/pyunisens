@@ -11,5 +11,6 @@ setup(name='pyunisens',
       packages=['unisens'],
       install_requires=[
          'numpy',
-         'datetime'],
+         'datetime',
+         'pandas'],
       zip_safe=False)
