@@ -500,10 +500,15 @@ class CustomEntry(FileEntry):
             with open(self._filename, 'r') as f:
                 data = f.read()
         elif dtype=='image':
-            try: import imageio
-            except: logging.error('can\'t load: imageio not installed. \n'\
+            try: 
+                import imageio
+                data = imageio.imread(self._filename)
+            except: 
+                logging.error('can\'t load: imageio not installed. \n'\
                                   'run pip install imageio')
-            data = imageio.imread(self._filename)
+                with open(self._filename, 'rb') as f:
+                    data = f.read()
+            
         elif dtype=='json':
             with open(self._filename, 'r') as f:
                 data = json.load(f)
