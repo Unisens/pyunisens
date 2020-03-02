@@ -12,7 +12,7 @@ install:
 - pip install -e . -v
 
 script:
-- pytest ./test/unisens_test.py
+- pytest ./test/unisens_test.py --cov=unisens/
 
 after_success:
 - coveralls
