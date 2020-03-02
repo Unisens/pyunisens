@@ -34,62 +34,62 @@ class Testing(unittest.TestCase):
             
         one_column = [[x] for x in range(5)]
         utils.write_csv(file, one_column)
-        read = utils.read_csv(file)
+        read = utils.read_csv(file, convert_nums=True)
         self.assertSequenceEqual(one_column, read)
         
         one_column = [x for x in range(5)]
         utils.write_csv(file, one_column, comment='test\ntest')
-        read = utils.read_csv(file)
+        read = utils.read_csv(file, convert_nums=True)
         self.assertSequenceEqual(one_column, [x[0]for x in read])
         
         two_column = [[x, str(x+10)+'xf'] for x in range(5)]
         utils.write_csv(file, two_column)
-        read = utils.read_csv(file)
+        read = utils.read_csv(file, convert_nums=True)
         self.assertSequenceEqual(two_column, read)
         
         two_column = [[x, str(x+10)+'xf'] for x in range(5)]
         utils.write_csv(file, two_column, sep=',')
-        read = utils.read_csv(file)
+        read = utils.read_csv(file, convert_nums=True)
         self.assertNotEqual(two_column, read)
-        read = utils.read_csv(file, sep=',')
+        read = utils.read_csv(file, sep=',', convert_nums=True)
         self.assertEqual(two_column, read) 
         
         var_column = [[x, str(x+10)+'xf'] for x in range(5)]
         var_column[0] = [1,2,3,4,5]
         utils.write_csv(file, var_column)
-        read = utils.read_csv(file)
+        read = utils.read_csv(file, convert_nums=True)
         self.assertEqual(var_column, read) 
         
         with_comment = [[x, str(x+10)+'xf'] for x in range(5)]
         utils.write_csv(file, with_comment, comment='test')
-        read = utils.read_csv(file)
+        read = utils.read_csv(file, convert_nums=True)
         self.assertEqual(with_comment, read) 
         
         one_row = [[x for x in range(5)]]
         utils.write_csv(file, one_row)
-        read = utils.read_csv(file)
+        read = utils.read_csv(file, convert_nums=True)
         self.assertEqual(one_row, read) 
         read = utils.read_csv(file, convert_nums=False)
         self.assertEqual(read, [[str(x) for x in one_row[0]]]) 
         
         float_2d = [[x+1.4, x+5.2] for x in range(5)]
         utils.write_csv(file, float_2d)
-        read = utils.read_csv(file)
+        read = utils.read_csv(file, convert_nums=True)
         self.assertEqual(float_2d, read) 
         
         float_2d = [[x+1.4, x+5.2] for x in range(5)]
         utils.write_csv(file, float_2d, decimal_sep=',')
-        read = utils.read_csv(file, decimal_sep=',')
+        read = utils.read_csv(file, decimal_sep=',', convert_nums=True)
         self.assertEqual(float_2d, read) 
         
         np_1d = np.random.rand(5)
         utils.write_csv(file, np_1d)
-        read = np.array(utils.read_csv(file)).squeeze()
+        read = np.array(utils.read_csv(file, convert_nums=True)).squeeze()
         np.testing.assert_array_equal(np_1d, read) 
         
         np_2d = np.random.rand(1,5)
         utils.write_csv(file, np_2d)
-        read = np.array(utils.read_csv(file))
+        read = np.array(utils.read_csv(file, convert_nums=True))
         np.testing.assert_array_equal(np_2d, read) 
         
         with self.assertRaises(ValueError):
@@ -119,7 +119,18 @@ class Testing(unittest.TestCase):
     def test_strip(self):
         self.assertEqual('abc', utils.strip('abc'))
         self.assertEqual('abc', utils.strip('{https:////}{{{{}}}}abc'))
-    
+        
+    def test_str2num(self):
+        self.assertEqual(utils.str2num('200_26747'), '200_26747') # due to PEP-515
+        self.assertEqual(utils.str2num('20026747'), 20026747) 
+        self.assertEqual(utils.str2num('s20026747'), 's20026747')
+        self.assertEqual(utils.str2num('s20.026747'), 's20.026747')
+        self.assertEqual(utils.str2num('20.026747'), 20.026747)
+        self.assertEqual(utils.str2num('1e10'), 1e10)
+        self.assertEqual(utils.str2num('s20,026747', ','), 's20,026747')
+        self.assertEqual(utils.str2num('20,026747', ','), 20.026747)
+        self.assertEqual(utils.str2num('20,02,6747', ','), '20,02,6747')
+
 if __name__ == '__main__':
     unittest.main()
 

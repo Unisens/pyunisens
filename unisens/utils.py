@@ -29,7 +29,7 @@ def indent(elem, level=0):
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
 
-def num2str(element, decimal_sep):
+def num2str(element, decimal_sep='.'):
     """
     A helper function that converts strings to numbers if possible
     and replaces the float decimal separator with the given value
@@ -38,13 +38,16 @@ def num2str(element, decimal_sep):
         return str(element).replace('.', decimal_sep)
     return str(element)
     
-def str2num(string, decimal_sep):
+def str2num(string, decimal_sep='.'):
     """
     A helper function that converts numbers to strings if possible
     and replaces the float decimal separator with the given value
     """
     if string.isdigit(): return int(string)
-    try: return float(string.replace(decimal_sep, '.'))
+    try: 
+        string_x = string.replace(decimal_sep, '.')
+        string_x = string_x.replace('_', '#') # necessary because of PEP-515
+        return float(string_x)
     except: return string
     
     
@@ -103,7 +106,7 @@ def write_csv(csv_file, data_list, sep=';', decimal_sep='.', comment=None):
     return True
 
 def read_csv(csv_file, comment='#', sep=';', decimal_sep='.',
-             convert_nums=True, keep_empty=False):
+             convert_nums=False, keep_empty=False):
     """
     simply load an csv file with a separator and newline as \\n
     comments are annotated as starting with # and are removed

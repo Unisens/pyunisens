@@ -494,12 +494,13 @@ class CustomEntry(FileEntry):
         """
         try:
             import json_tricks as json
+            tricks_installed = True
         except:
             import json
+            tricks_installed = False
             logging.warn('json_tricks not installed, can\'t save numpy array'\
                          'automatically. install with pip install json-tricks')
         
-        raise NotImplementedError
         if dtype=='auto':
             ext = os.path.splitext(self._filename)[-1].lower()
             txt_exts = ['.txt', '.csv', '.ini']
@@ -529,7 +530,10 @@ class CustomEntry(FileEntry):
             imageio.imsave(self._filename, data)
         elif dtype=='json':
             with open(self._filename, 'w') as f:
-                data = json.load(f)
+                if tricks_installed:
+                    json.dump(data, f, allow_nan=True)
+                else:
+                    json.dump(data, f)
         elif dtype=='numpy':
             data = np.save(self._filename, data)
         else:
