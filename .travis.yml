@@ -8,7 +8,7 @@ python:
 
 install:
 - pip install -r requirements.txt
-- pip install pytest pytest-cov codecov
+- pip install pytest pytest-cov codecov imageio json-tricks
 - pip install -e . -v
 
 script:
