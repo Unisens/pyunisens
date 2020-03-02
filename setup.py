@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(name='pyunisens',
       python_requires='>=3.6',
-      version='0.1',
+      version='1.0',
       description='A python implementation of the Unisens standard',
       url='http://github.com/skjerns/pyUnisens',
       author='skjerns',
@@ -11,6 +11,5 @@ setup(name='pyunisens',
       packages=['unisens'],
       install_requires=[
          'numpy',
-         'pandas',
-         'pillow'],
+         'datetime'],
       zip_safe=False)
