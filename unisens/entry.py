@@ -227,7 +227,7 @@ class SignalEntry(FileEntry):
         data = np.fromfile(self._filename, dtype=dtype)
         if scaled:
             data = (data * float(self.lsbValue))
-        data = data.reshape([n_channels, -1])
+        data = data.reshape([-1,n_channels]).T
         return data
     
     
@@ -259,7 +259,7 @@ class SignalEntry(FileEntry):
             # if the list entries are arrays, we can infer the dtype from them
             if isinstance(data[0], np.ndarray) and dataType is None:
                 dtype = str(data[0].dtype)
-            data = np.array(data, dtype=dtype)
+            # data = np.array(data, dtype=dtype)
             
         order = sys.byteorder.upper() # endianess
         fileFormat = MiscEntry('binFileFormat', key='endianess', value=order)
@@ -309,9 +309,9 @@ class SignalEntry(FileEntry):
             # this means there are channel names there but do not match n_data
             raise ValueError('Must indicate channel names')
             
-        # save data using numpy 
-        data.ravel().tofile(file)
-        # add the file format description (dont understand why dtype isnt here)
+        # save data using numpy , 
+        # .T because unisens reads rows*columns not columns*rows like numpy
+        data.T.tofile(file)
         
         if baseline is not None: self.set_attrib('baseline', baseline)
         if sampleRate is not None: self.set_attrib('sampleRate', sampleRate)
