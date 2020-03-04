@@ -190,11 +190,11 @@ class FileEntry(Entry):
         if 'id' in self.attrib:
             self._filename = os.path.join(self._folder, self.id)
             if not os.path.exists(self._filename):
-                logging.error('File for {} does not exist'.format(self.id))     
+                logging.error('File {} does not exist'.format(self.id))     
             self.set_attrib('id', self.attrib['id'])
         elif id:
             if os.path.splitext(str(id))[-1]=='':
-                logging.warning('id should be a filename, ie. .bin/.csv/...')
+                logging.warning('id should be a filename with extension ie. .bin')
             self._filename = os.path.join(self._folder, id)
             self.set_attrib('id', id)
         else:
@@ -232,9 +232,9 @@ class SignalEntry(FileEntry):
     
     
     def set_data(self, data:np.ndarray, dataType:str=None, ch_names:list=None, 
-                       sampleRate:int=None, lsbValue:float=1, unit:str=None, 
+                       sampleRate:int=256, lsbValue:float=1, unit:str=None, 
                        comment:str=None, contentClass:str=None,
-                       adcResolution:int=str):
+                       adcResolution:int=None, baseline:float=None, **kwargs):
         """
         Set the data that is connected to this SignalEntry.
         The data will in any case be saved with Endianness LITTLE,
@@ -260,19 +260,21 @@ class SignalEntry(FileEntry):
             if isinstance(data[0], np.ndarray) and dataType is None:
                 dtype = str(data[0].dtype)
             data = np.array(data, dtype=dtype)
-
+            
+        order = sys.byteorder.upper() # endianess
+        fileFormat = MiscEntry('binFileFormat', key='endianess', value=order)
+        self.add_entry(fileFormat)
 
         #### dtype inference start
-        dtype_mapping = {'float32': 'float',
+        dtype_mapping = {'float16': 'float',
+                         'float32': 'float',
                          'float64': 'double',
                          'int': 'int32'}
 
         if dataType is None:
             dataType = str(data.dtype).upper()
 
-
         dataType = dtype_mapping.get(dataType.lower(), dataType)
-        # infer dtype from array if not indicated
         allowed_dtypes = ['DOUBLE', 'FLOAT', 'INT16', 'INT32', 
                           'INT8', 'UINT16', 'UINT32', 'UINT8']
         assert dataType.upper() in allowed_dtypes,\
@@ -308,20 +310,22 @@ class SignalEntry(FileEntry):
             raise ValueError('Must indicate channel names')
             
         # save data using numpy 
-        data.tofile(file)
-        
+        data.ravel().tofile(file)
         # add the file format description (dont understand why dtype isnt here)
-        order = sys.byteorder.upper() # endianess
-        fileFormat = MiscEntry('binFileFormat', key='endianess', value=order)
-        self.add_entry(fileFormat)
         
+        if baseline is not None: self.set_attrib('baseline', baseline)
         if sampleRate is not None: self.set_attrib('sampleRate', sampleRate)
         if lsbValue is not None: self.set_attrib('lsbValue', lsbValue)
         if unit is not None: self.set_attrib('unit', unit)
         if comment is not None: self.set_attrib('comment', comment)
         if contentClass is not None: self.set_attrib('contentClass', contentClass)
-        if dataType is not None: self.set_attrib('dataType', dataType)
+        if dataType is not None: self.set_attrib('dataType', dataType.lower())
         if adcResolution is not None: self.set_attrib('adcResolution',adcResolution)
+        
+        # set all other keyword arguments/comments as well.
+        for key in kwargs:
+            self.set_attrib(key, kwargs[key])
+            
         self._autosave()
         return self        
 

@@ -96,17 +96,17 @@ class Testing(unittest.TestCase):
             with self.assertRaises(ValueError):
                 entry = entrytype()
             
-            entry = entrytype(parent=folder, id='test')
+            entry = entrytype(parent=folder, id='test.csv')
             entry.set_attrib('key1', 'value1')
             entry.key2 = 'value2'
             self.assertTrue(hasattr(entry, 'id'))
             self.assertTrue(hasattr(entry, 'key1'))
             self.assertTrue(hasattr(entry, 'key2'))
 
-            self.assertEqual(entry.id, 'test')
+            self.assertEqual(entry.id, 'test.csv')
             self.assertEqual(entry.key1, 'value1')
             self.assertEqual(entry.key2, 'value2')
-            self.assertEqual(entry.attrib['id'], 'test')
+            self.assertEqual(entry.attrib['id'], 'test.csv')
             self.assertEqual(entry.attrib['key1'], 'value1')
             self.assertEqual(entry.attrib['key2'], 'value2')
             
@@ -155,7 +155,7 @@ class Testing(unittest.TestCase):
         
         for i,entrytype in enumerate([CustomEntry, ValuesEntry,
                                       SignalEntry, EventEntry]):
-            entry = entrytype(parent=folder, id='test'+str(i))
+            entry = entrytype(parent=folder, id='test'+str(i)+'.csv')
             entry.set_attrib('key1', 'value1')
             entry.key2 = 'value2'
             u.add_entry(entry)
@@ -185,7 +185,7 @@ class Testing(unittest.TestCase):
         
         for i,entrytype in enumerate([CustomEntry, ValuesEntry,
                                       SignalEntry, EventEntry]):
-            entry = entrytype(parent=folder, id='test'+str(i))
+            entry = entrytype(parent=folder, id='test'+str(i)+'.csv')
             entry.set_attrib('key1', 'value1')
             entry.key2 = 'value2'
             u.add_entry(entry)
@@ -392,7 +392,6 @@ class Testing(unittest.TestCase):
             signal.set_attrib('test', 'asd')
             signal.set_data(data1, sampleRate=500, lsbValue=1, unit='mV', 
                             comment='Test', contentClass='EEG')
-            u.add_entry(signal)
             u.save()
             u1 = Unisens(folder)
             data2 = u1['signal.bin'].get_data()
@@ -400,6 +399,7 @@ class Testing(unittest.TestCase):
         
         folder = os.path.join(self.tmpdir, 'data', 'record')
         u = Unisens(folder, makenew=True)
+        
         
         
     def test_save_csvetry(self):
@@ -413,7 +413,6 @@ class Testing(unittest.TestCase):
         event.set_attrib('contentClass','trigger')
         event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
         event.set_data(times, contentClass='triggers', unit='ms')
-        u.add_entry(event)
         u.save()
         u2 = Unisens(folder)
         event2 = u2['triggers.csv']
@@ -429,7 +428,6 @@ class Testing(unittest.TestCase):
         event.set_attrib('contentClass','trigger')
         event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
         event.set_data(times, contentClass='triggers', unit='ms')
-        u.add_entry(event)
         u.save()
         u2 = Unisens(folder)
         event2 = u2['triggers.csv']
@@ -444,7 +442,6 @@ class Testing(unittest.TestCase):
         event.set_attrib('contentClass','trigger')
         event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
         event.set_data(times, contentClass='triggers', unit='ms')
-        u.add_entry(event)
         u.save()
         u2 = Unisens(folder)
         event2 = u2['triggers.csv']
@@ -462,13 +459,11 @@ class Testing(unittest.TestCase):
         event.set_attrib('contentClass','trigger')
         event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
         event.set_data(times, contentClass='triggers', unit='ms')
-        u.add_entry(event)
         u.save()
         u2 = Unisens(folder)
         event2 = u2['triggers.csv']
         times2 = event2.get_data()
         self.assertSequenceEqual(times, times2)
-
     
         # now test with different separators   
         folder = os.path.join(self.tmpdir, 'data', 'record2')
@@ -478,7 +473,6 @@ class Testing(unittest.TestCase):
         event.set_attrib('contentClass','trigger')
         event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
         event.set_data(times, contentClass='triggers', unit='ms')
-        u.add_entry(event)
         u.save()
         u2 = Unisens(folder)
         event2 = u2['triggers.csv']
@@ -493,7 +487,6 @@ class Testing(unittest.TestCase):
         event.set_attrib('contentClass','trigger')
         event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
         event.set_data(times, contentClass='triggers', unit='ms')
-        u.add_entry(event)
         u.save()
         u2 = Unisens(folder)
         event2 = u2['triggers.csv']

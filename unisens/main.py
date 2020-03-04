@@ -22,6 +22,7 @@ todo: add group
 todo: csvFileFormat standard
 todo: add data
 todo: channel to valuesentry
+todo: parent in folder/parent
 
 @author: skjerns
 """
