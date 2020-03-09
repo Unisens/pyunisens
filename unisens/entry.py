@@ -260,7 +260,8 @@ class SignalEntry(FileEntry):
             if isinstance(data[0], np.ndarray) and dataType is None:
                 dtype = str(data[0].dtype)
             data = np.array(data, dtype=dtype)
-            
+        
+        data = np.atleast_2d(data)
         order = sys.byteorder.upper() # endianess
         fileFormat = MiscEntry('binFileFormat', key='endianess', value=order)
         self.add_entry(fileFormat)
@@ -308,7 +309,7 @@ class SignalEntry(FileEntry):
         else:
             # this means there are channel names there but do not match n_data
             raise ValueError('Must indicate channel names')
-            
+        
         # save data using numpy , 
         # .T because unisens reads rows*columns not columns*rows like numpy
         data.ravel().T.tofile(file)
