@@ -82,6 +82,7 @@ class Unisens(Entry):
         If no unisens.xml is present and new=False
         :param attrib: The attribute 
         """
+        assert isinstance(folder, str), f'folder must be string, is {folder}'
         self._folder = folder
         self._file = os.path.join(folder, 'unisens.xml')
         os.makedirs(folder, exist_ok=True)
@@ -126,7 +127,10 @@ class Unisens(Entry):
     
     def __getitem__(self, key):
         if isinstance(key, str):
-            return self.entries[key]
+            # we don't care about case, gently ignoring Linux case-sensitivity
+            for k in self.entries: 
+                if k.upper()==key.upper():
+                    return self.entries[k]
         elif isinstance(key, int):
             return self._entries[key]
         else:
@@ -135,7 +139,7 @@ class Unisens(Entry):
     def __str__(self):
         duration = self.__dict__.get('duration', 0)
         duration = str(datetime.timedelta(seconds=int(duration)))
-        n_entries = len(self.entries)
+        n_entries = len(self.entries) if hasattr(self, 'entries') else 0
         id = self.__dict__.get('measurementId', 'no ID')
         s = 'Unisens: {}({}, {} entries)'.format(id, duration, n_entries)
         return s

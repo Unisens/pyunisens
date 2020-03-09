@@ -259,7 +259,7 @@ class SignalEntry(FileEntry):
             # if the list entries are arrays, we can infer the dtype from them
             if isinstance(data[0], np.ndarray) and dataType is None:
                 dtype = str(data[0].dtype)
-            # data = np.array(data, dtype=dtype)
+            data = np.array(data, dtype=dtype)
             
         order = sys.byteorder.upper() # endianess
         fileFormat = MiscEntry('binFileFormat', key='endianess', value=order)
@@ -311,7 +311,7 @@ class SignalEntry(FileEntry):
             
         # save data using numpy , 
         # .T because unisens reads rows*columns not columns*rows like numpy
-        data.T.tofile(file)
+        data.ravel().T.tofile(file)
         
         if baseline is not None: self.set_attrib('baseline', baseline)
         if sampleRate is not None: self.set_attrib('sampleRate', sampleRate)
