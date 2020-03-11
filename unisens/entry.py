@@ -7,7 +7,7 @@ Created on Mon Jan  6 21:16:58 2020
 import os, sys
 import numpy as np
 import logging
-from .utils import validkey, strip, lowercase
+from .utils import validkey, strip, lowercase, make_key
 from .utils import read_csv, write_csv
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
@@ -53,6 +53,27 @@ class Entry():
             isinstance(value, (int, float, bool, bytes, str)):
             self.set_attrib(name, value)
 
+
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            # we don't care about case, gently ignoring Linux case-sensitivity
+            for k in self.__dict__: 
+                if k.upper()==key.upper():
+                    return self.entries[k]
+            # if this didn't work, we see if we find a unique 
+            found = 0
+            for k in self.__dict__:
+                if k.upper().split('_')[0]==key.upper():
+                    found+=1
+                    fkey = k
+            if found==1: return self.__dict__[fkey]
+            if found>1: raise KeyError(f'Multiple keys start with {fkey}')
+                
+        elif isinstance(key, int):
+            return self._entries[key]
+        raise KeyError(f'{key} not found')
+
+
     def _autosave(self):
         """
         if autosave is enabled, this function will call the autosave
@@ -65,6 +86,18 @@ class Entry():
         except:
             pass
 
+    def _check_readonly(self):
+        """
+        will raise an exception if a write operation 
+        is requested to readonly file
+        """
+        if hasattr(self, '_parent') and self._parent is not None:
+            if isinstance(self._parent, str): return True
+            self._parent._check_readonly()
+        else:
+            if self._readonly:
+                raise IOError(f'Read only, can\'t write to {self._folder}.')
+
     def add_entry(self, entry:'Entry'):
         
         # there are several Entries that have reserved names.
@@ -72,12 +105,15 @@ class Entry():
         reserved = ['binFileFormat', 'csvFileFormat', 'customFileFormat']
         for name in reserved:
             if entry._name==name and name in self.__dict__:
-                if isinstance(self.csvFileFormat, Entry): 
                     self.remove_entry(name)
         
         
         self._entries.append(entry)
-        name = entry._name
+        
+        if hasattr(entry, 'id'): 
+            name = make_key(entry.id)
+        else:
+            name = entry._name
         
         # if an entry already exists with this exact name
         # we put the entry inside of a list and append the new entry
@@ -89,7 +125,7 @@ class Entry():
                 self.__dict__[name] = [self.__dict__[name]]
                 self.__dict__[name].append(entry)
         else:
-            self.__dict__[entry._name] = entry
+            self.__dict__[name] = entry
         self._autosave()
         return self
 
@@ -144,6 +180,13 @@ class Entry():
         self.__dict__.update(self.attrib)
         self._autosave()
         return self
+    
+    def get_attrib(self, name:str, default=None):
+        """
+        This will allow to set new attributes with .attrname = value
+        while warning the user if builtin methods are overwritten
+        """
+        return self.__dict__.get(name, default)
     
     def remove_attr(self, name:str):
         """
@@ -227,8 +270,7 @@ class SignalEntry(FileEntry):
         data = np.fromfile(self._filename, dtype=dtype)
         if scaled:
             data = (data * float(self.lsbValue))
-        data = data.reshape([-1,n_channels]).T
-        return data
+        return data.reshape([-1, n_channels]).T
     
     
     def set_data(self, data:np.ndarray, dataType:str=None, ch_names:list=None, 
@@ -251,7 +293,8 @@ class SignalEntry(FileEntry):
         :param unit: the unit which is indicated, e.g. mV, Ohm, ...
         :param contentClass: sets the content class, e.g. EEG, ECG, ...
         """
-    
+        self._check_readonly()
+
         file = os.path.join(self._folder, self.id)
         
         # if list, convert to numpy array
@@ -312,7 +355,7 @@ class SignalEntry(FileEntry):
         
         # save data using numpy , 
         # .T because unisens reads rows*columns not columns*rows like numpy
-        data.ravel().T.tofile(file)
+        data.T.tofile(file)
         
         if baseline is not None: self.set_attrib('baseline', baseline)
         if sampleRate is not None: self.set_attrib('sampleRate', sampleRate)
@@ -360,7 +403,8 @@ class CsvFileEntry(FileEntry):
         :param data: the data as list or np array
         :param comment: a comment, that will be added to the first line with #
         """
-        
+        self._check_readonly()
+
         assert 'csvFileFormat' in self.__dict__, 'csvFileFormat information'\
                                     'missing: No separator and decimal set'
         assert isinstance(data, (list,np.ndarray)),'data must be list of lists'
@@ -533,6 +577,7 @@ class CustomEntry(FileEntry):
         :param dtype: binary or image.
         :returns: the binary data or an PIL.Image
         """
+        self._check_readonly()
         try:
             import json_tricks as json
             tricks_installed = True

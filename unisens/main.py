@@ -68,8 +68,9 @@ class Unisens(Entry):
                         If no unisens.xml is present and new=False
     :param attrib: The attribute 
     """
-    def __init__(self, folder, makenew=False, autosave=False, comment:str='', 
-                 duration:int=0, measurementId:str='NaN', timestampStart=''):
+    def __init__(self, folder, makenew=False, autosave=False, readonly=False,
+                 comment:str='', duration:int=0, measurementId:str='NaN', 
+                 timestampStart=''):
         """
         Initializes a Unisens object.
         If a unisens.xml file is already present in the folder, it will load
@@ -79,9 +80,12 @@ class Unisens(Entry):
         
         :param folder: The folder where the unisens data is stored.
         :param makenew: Create a new unisens.xml, even if one is present.
-        If no unisens.xml is present and new=False
+                        If no unisens.xml is present and new=False
+        :param readonly: Select if any files should be written or not.
         :param attrib: The attribute 
         """
+        assert autosave!=readonly or not autosave and not readonly, \
+            'either read-only or autosave can be enabled'
         assert isinstance(folder, str), f'folder must be string, is {folder}'
         self._folder = folder
         self._file = os.path.join(folder, 'unisens.xml')
@@ -91,6 +95,7 @@ class Unisens(Entry):
         self.entries = AttrDict()
         self._entries = list()
         self._name = 'unisens'
+        self._readonly = readonly
         
         if os.path.isfile(self._file) and not makenew:
             logging.info('loading unisens.xml from {}'.format(\
@@ -122,19 +127,32 @@ class Unisens(Entry):
         """
         return Entry.__setattr__(self, name, value)
 
-    def __contains__(self, obj):
-        return obj in self.entries
-    
+   
+    def __contains__(self, item):
+        try:
+            self.__getitem__(item)
+            return True
+        except:
+            return False   
+        
     def __getitem__(self, key):
         if isinstance(key, str):
             # we don't care about case, gently ignoring Linux case-sensitivity
             for k in self.entries: 
                 if k.upper()==key.upper():
                     return self.entries[k]
+            # if this didn't work, we see if we find a unique 
+            found = 0
+            for k in self.entries:
+                if os.path.splitext(k.upper())[0]==key.upper():
+                    found+=1
+                    fkey = k
+            if found==1: return self.entries[fkey]
+            if found>1: raise KeyError(f'Multiple keys start with {fkey}')
+                
         elif isinstance(key, int):
             return self._entries[key]
-        else:
-            raise KeyError(f'{key} not found')
+        raise KeyError(f'{key} not found')
     
     def __str__(self):
         duration = self.__dict__.get('duration', 0)
@@ -222,9 +240,12 @@ class Unisens(Entry):
                        will overwrite existing description file.
         :param filename: the filename to save. use unisens.xml.
         """
+        self._check_readonly()
+
         if folder is None:
             folder = self._folder
         file = os.path.join(folder, filename)
+        
         ET.register_namespace("", "http://www.unisens.org/unisens2.0")
         element = self.to_element()
         indent(element)

@@ -382,8 +382,9 @@ class Testing(unittest.TestCase):
    
 
 
+
     def test_save_signalentry(self):
-        folder = os.path.join(self.tmpdir, 'data', 'record')
+        folder = os.path.join(self.tmpdir, 'data', 'record5')
 
         for dtype in ['int16', 'uint8', 'float', 'int32']:
             u = Unisens(folder, makenew=True)
@@ -492,8 +493,36 @@ class Testing(unittest.TestCase):
         event2 = u2['triggers.csv']
         times2 = event2.get_data()
         np.testing.assert_allclose(times, times2)
-    
-    
+        
+    def test_access_no_ext(self):
+        u = Unisens(tempfile.mkdtemp(prefix='unisens'))
+        entry1 = SignalEntry('single.csv', parent=u)
+        entry2 = SignalEntry('double.csv', parent=u)
+        entry3 = SignalEntry('double.bin', parent=u)
+        
+        self.assertIs (u['single.csv'], entry1)
+        self.assertIs (u['single'], entry1)
+        self.assertIs (u['double.csv'], entry2)
+        self.assertIs (u['double.bin'], entry3)
+        with self.assertRaises(KeyError):
+            u['double']
+            
+        self.assertIn('single.csv', u)
+        self.assertIn('single', u)
+        self.assertIn('double.csv', u)  
+        self.assertNotIn('double', u)  
+   
+    def test_subentries(self):
+        """this is not officially supported, but useful"""
+        folder = tempfile.mkdtemp(prefix='unisens_x')
+        u = Unisens(folder, makenew=True, autosave=True)
+        c = CustomEntry(id='test.bin', parent=u)
+        CustomEntry('feat1.txt', parent=c).set_data('123')
+        CustomEntry('feat2.txt', parent=c).set_data('456')
+        u = Unisens(folder)
+        self.assertEqual(u['test']['feat1'].get_data(), '123')
+        self.assertEqual(u['test']['feat2'].get_data(), '456')
+     
 if __name__ == '__main__':
     unittest.main()
 
