@@ -545,6 +545,25 @@ class Testing(unittest.TestCase):
         self.assertEqual(u['test']['sub/feat2.txt'].get_data(), '456')
         
         
+    def test_copy(self):
+        folder = tempfile.mkdtemp(prefix='unisens_copy')
+        u1 = Unisens(folder, makenew=True, autosave=True)
+        CustomEntry('test1.txt', parent=u1).set_data('asd')
+        u2 = u1.copy()
+        CustomEntry('test2.txt', parent=u1).set_data('qwerty')
+        
+        u1.asd = 2
+        self.assertTrue(hasattr(u1, 'asd'))
+        self.assertFalse(hasattr(u2, 'asd'))
+        
+        self.assertEqual(u1['test1'].get_data(), 'asd')
+        self.assertEqual(u2['test1'].get_data(), 'asd')
+        self.assertEqual(u1['test2'].get_data(), 'qwerty')
+        
+        with self.assertRaises(KeyError):
+            u2['test2']
+        
+        
      
 if __name__ == '__main__':
     unittest.main()

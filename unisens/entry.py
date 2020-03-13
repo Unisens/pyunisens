@@ -11,6 +11,8 @@ from .utils import validkey, strip, lowercase, make_key, valid_filename
 from .utils import read_csv, write_csv
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
+from copy import deepcopy
+
 
 class Entry():
     """
@@ -104,6 +106,9 @@ class Entry():
                 raise IOError(f'Read only, can\'t write to {self._folder}.')
         return True
     
+    def copy(self):
+        return deepcopy(self)
+    
     def add_entry(self, entry:'Entry'):
         
         # there are several Entries that have reserved names.
@@ -131,9 +136,9 @@ class Entry():
                 self.__dict__[name].append(entry)
         else:
             self.__dict__[name] = entry
+        entry._parent = self
         self._autosave()
         return self
-
 
     def remove_entry(self, name):
         deleted = False
