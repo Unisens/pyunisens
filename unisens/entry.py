@@ -113,7 +113,6 @@ class Entry():
             if entry._name==name and name in self.__dict__:
                     self.remove_entry(name)
         
-        
         self._entries.append(entry)
         
         if hasattr(entry, 'id'): 

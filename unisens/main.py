@@ -70,7 +70,7 @@ class Unisens(Entry):
     """
     def __init__(self, folder, makenew=False, autosave=False, readonly=False,
                  comment:str='', duration:int=0, measurementId:str='NaN', 
-                 timestampStart=''):
+                 timestampStart='', file='unisens.xml'):
         """
         Initializes a Unisens object.
         If a unisens.xml file is already present in the folder, it will load
@@ -88,7 +88,7 @@ class Unisens(Entry):
             'either read-only or autosave can be enabled'
         assert isinstance(folder, str), f'folder must be string, is {folder}'
         self._folder = folder
-        self._file = os.path.join(folder, 'unisens.xml')
+        self._file = os.path.join(folder, file)
         os.makedirs(folder, exist_ok=True)
         folder = os.path.dirname(folder + '/')
 
@@ -241,11 +241,14 @@ class Unisens(Entry):
         :param filename: the filename to save. use unisens.xml.
         """
         self._check_readonly()
-
+        
         if folder is None:
             folder = self._folder
+        if filename is None:
+            filename = os.path.basename(self._file)
+            
         file = os.path.join(folder, filename)
-        
+
         ET.register_namespace("", "http://www.unisens.org/unisens2.0")
         element = self.to_element()
         indent(element)
