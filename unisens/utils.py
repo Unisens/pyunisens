@@ -154,7 +154,30 @@ class AttrDict(OrderedDict):
     def __init__(self, *args, **kwargs):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
+  
+
+def valid_filename(name:str):
+    """
+    Checks whether a filename follows the naming conventions
+
+    Parameters
+    ----------
+    name : str
+        a filename
+
+    Returns
+    -------
+    whether the filename is valid and can be created on a disk.
+    """
+    if name.startswith('/') or name.startswith('\\'):
+        # this gives an os.path error
+        raise ValueError(f'ID cannot start with \\ or / is "{name}"')
         
+    forbidden = ':*?"<>|'
+    for s in name:
+        if s in forbidden:
+            raise ValueError('ID cannot contain :*?"<>|')
+    return True
 
 def make_key(string:str):
     """

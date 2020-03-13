@@ -522,6 +522,29 @@ class Testing(unittest.TestCase):
         u = Unisens(folder)
         self.assertEqual(u['test']['feat1'].get_data(), '123')
         self.assertEqual(u['test']['feat2'].get_data(), '456')
+        
+    def test_entries_with_subfolder(self):
+        """this is not officially supported, but useful"""
+        folder = tempfile.mkdtemp(prefix='unisens_x')
+        u = Unisens(folder, makenew=True, autosave=True)
+        c = CustomEntry(id='test.bin', parent=u)
+        CustomEntry('sub/feat1.txt', parent=c).set_data('123')
+        CustomEntry('sub\\feat2.txt', parent=c).set_data('456')
+        with self.assertRaises(ValueError):
+            CustomEntry('\\sub\\feat3.txt', parent=c).set_data('789')
+            
+        file1 = os.path.join(folder, 'sub', 'feat1.txt')
+        file2 = os.path.join(folder, 'sub', 'feat2.txt')
+        file3 = os.path.join(folder, 'sub', 'feat3.txt')
+
+        self.assertTrue(os.path.isfile(file1))
+        self.assertTrue(os.path.isfile(file2))
+        self.assertFalse(os.path.isfile(file3))
+        u = Unisens(folder)
+        self.assertEqual(u['test']['feat1'].get_data(), '123')
+        self.assertEqual(u['test']['sub/feat2.txt'].get_data(), '456')
+        
+        
      
 if __name__ == '__main__':
     unittest.main()

@@ -7,7 +7,7 @@ Created on Mon Jan  6 21:16:58 2020
 import os, sys
 import numpy as np
 import logging
-from .utils import validkey, strip, lowercase, make_key
+from .utils import validkey, strip, lowercase, make_key, valid_filename
 from .utils import read_csv, write_csv
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
@@ -56,14 +56,19 @@ class Entry():
 
     def __getitem__(self, key):
         if isinstance(key, str):
+            key = make_key(key)
+            
             # we don't care about case, gently ignoring Linux case-sensitivity
             for k in self.__dict__: 
                 if k.upper()==key.upper():
-                    return self.entries[k]
-            # if this didn't work, we see if we find a unique 
+                    return self.__dict__[k]
+                
+            # if this didn't work, we see if we find a the filename without ext
             found = 0
             for k in self.__dict__:
-                if k.upper().split('_')[0]==key.upper():
+                dict_filename_no_ext = k.upper().split('_')[-2:-1]
+                if dict_filename_no_ext==[]:continue
+                if dict_filename_no_ext[0].upper()==key.upper():
                     found+=1
                     fkey = k
             if found==1: return self.__dict__[fkey]
@@ -94,10 +99,11 @@ class Entry():
         if hasattr(self, '_parent') and self._parent is not None:
             if isinstance(self._parent, str): return True
             self._parent._check_readonly()
-        else:
+        elif hasattr(self, '_readonly'):
             if self._readonly:
                 raise IOError(f'Read only, can\'t write to {self._folder}.')
-
+        return True
+    
     def add_entry(self, entry:'Entry'):
         
         # there are several Entries that have reserved names.
@@ -242,6 +248,9 @@ class FileEntry(Entry):
             self.set_attrib('id', id)
         else:
             raise ValueError('id must be supplied')
+        valid_filename(self.id)
+        folder = os.path.dirname(self._filename)
+        os.makedirs(folder, exist_ok=True)
         if isinstance(parent, Entry): parent.add_entry(self)
 
         

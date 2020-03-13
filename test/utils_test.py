@@ -108,6 +108,18 @@ class Testing(unittest.TestCase):
         r = utils.make_key(s)
         self.assertEqual('x_1__________',r)
         
+        
+    def test_valid_filename(self):
+        string = '<>:|?*'
+        for s in string:
+            with self.assertRaises(ValueError):
+                utils.valid_filename(s)
+                
+        with self.assertRaises(ValueError):
+            utils.valid_filename('/test.vbin')
+            utils.valid_filename('\\test.vbin')   
+        self.assertTrue(utils.valid_filename('asd/asd\\asd2$.bin'))
+        
     def test_validkey(self):
         with self.assertRaises(AssertionError):
             utils.validkey(4)
