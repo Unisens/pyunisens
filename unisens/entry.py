@@ -58,24 +58,8 @@ class Entry():
 
     def __getitem__(self, key):
         if isinstance(key, str):
-            key = make_key(key)
-            
-            # we don't care about case, gently ignoring Linux case-sensitivity
-            for k in self.__dict__: 
-                if k.upper()==key.upper():
-                    return self.__dict__[k]
-                
-            # if this didn't work, we see if we find a the filename without ext
-            found = 0
-            for k in self.__dict__:
-                dict_filename_no_ext = k.upper().split('_')[-2:-1]
-                if dict_filename_no_ext==[]:continue
-                if dict_filename_no_ext[0].upper()==key.upper():
-                    found+=1
-                    fkey = k
-            if found==1: return self.__dict__[fkey]
-            if found>1: raise KeyError(f'Multiple keys start with {fkey}')
-                
+            i, key = self._get_index(key)
+            return self._entries[i]
         elif isinstance(key, int):
             return self._entries[key]
         raise KeyError(f'{key} not found')
@@ -106,25 +90,64 @@ class Entry():
                 raise IOError(f'Read only, can\'t write to {self._folder}.')
         return True
     
+
+    def _get_index(self, id_or_name):
+        """
+        for a given id or name get the index of the entry in ._entries
+        and the key of the entry in __dict__
+        """
+        id_or_name = make_key(id_or_name)
+        
+        # we don't care about case, gently ignoring Linux file case-sensitivity
+        # first check for exact match
+        for i, entry in enumerate(self._entries):
+            if hasattr(entry, 'id'):
+                id = make_key(entry.id)
+                if id.upper()==id_or_name.upper(): return i, id
+            else:
+                name = entry._name
+                if name.upper()==id_or_name.upper(): return i, name
+                
+        # then check for no file-ext match, eg text matches to text.txt
+        found = []
+        for i, entry in enumerate(self._entries):
+            if hasattr(entry, 'id'):
+                id = make_key(entry.id)
+                no_ext = id.upper().split('_')[-2:-1][0]
+                if no_ext==[]:continue
+                if no_ext==id_or_name.upper():
+                    found+=[(i, id)]
+        if len(found)==1: return found[0]     
+        if len(found)>1: KeyError(f'More than one match for {id_or_name}: {found}')
+        raise KeyError(f'{id_or_name} not found')
+        
+    
     def copy(self):
         return deepcopy(self)
     
-    def add_entry(self, entry:'Entry'):
+    
+    def add_entry(self, entry:'Entry', stack=True):
+        """
+        Add an subentry to this entry
         
+        :param entry: A sub entry that should be added, eg CustomAttributes
+        :param replace: if the entry is already present it will not be stacked
+                        but replaced.
+        """
         # there are several Entries that have reserved names.
         # these should not exist double, therefore they are re-set here
         reserved = ['binFileFormat', 'csvFileFormat', 'customFileFormat']
-        for name in reserved:
-            if entry._name==name and name in self.__dict__:
-                    self.remove_entry(name)
+        if entry._name in reserved: 
+            stack=False
+        
+        name = entry.id if hasattr(entry, 'id') else entry._name
+        
+        if not stack:
+            try: self.remove_entry(name)
+            except: pass
         
         self._entries.append(entry)
-        
-        if hasattr(entry, 'id'): 
-            name = make_key(entry.id)
-        else:
-            name = entry._name
-        
+                
         # if an entry already exists with this exact name
         # we put the entry inside of a list and append the new entry
         # with the same name. This way all entries are saved
@@ -141,30 +164,10 @@ class Entry():
         return self
 
     def remove_entry(self, name):
-        deleted = False
-        for i, entry in enumerate(self._entries):
-            if entry._name == name:
-                del self._entries[i]
-                try: del self.__dict__[name]
-                except: pass
-                deleted = True
-            if hasattr(entry, 'id') and entry.id==name:
-                del self._entries[i]
-                try: del self.__dict__[name]
-                except: pass
-                deleted = True
-            if deleted: 
-                self._autosave()
-                return
-        if name in self.__dict__:
-            del self.__dict__[name]
-            deleted = True
-            
-        if deleted: 
-            self._autosave()
-            return
-        
-        raise Exception(f'cannot find entry {name}')
+        i, key = self._get_index(name)
+        del self._entries[i]
+        del self.__dict__[key]
+        raise KeyError(f'cannot find entry {name}')
 
 
     def set_attrib(self, name:str, value:str):
@@ -315,6 +318,8 @@ class SignalEntry(FileEntry):
             # if the list entries are arrays, we can infer the dtype from them
             if isinstance(data[0], np.ndarray) and dataType is None:
                 dtype = str(data[0].dtype)
+            else:
+                dtype = type(data[0][0])
             data = np.array(data, dtype=dtype)
         
         data = np.atleast_2d(data)
@@ -391,23 +396,17 @@ class CsvFileEntry(FileEntry):
     def __init__(self, id=None, attrib=None, parent='.', 
                  decimalSeparator='.', separator=';', **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
+        assert decimalSeparator and separator, 'Must supply separators'
 
         if not self.id.endswith('csv'):
             logging.warn(f'id "{id}" does not end in .csv')
         
-        if decimalSeparator is not None and separator is not None:
-            csvFileFormat = MiscEntry('csvFileFormat', parent=self)
-            csvFileFormat.set_attrib('decimalSeparator', decimalSeparator)
-            csvFileFormat.set_attrib('separator', separator)
-            self.add_entry(csvFileFormat)
+        csvFileFormat = MiscEntry('csvFileFormat', parent=self)
+        csvFileFormat.set_attrib('decimalSeparator', decimalSeparator)
+        csvFileFormat.set_attrib('separator', separator)
+        self.add_entry(csvFileFormat)
+        
             
-        if not 'csvFileFormat' in self.__dict__:
-            logging.info(f'csvFileFormat information missing for {self.id},'\
-                         ' assuming decimal=. and seperator=;')
-            csvFileFormat = MiscEntry(name = 'csvFileFormat', parent=self)
-            csvFileFormat.set_attrib('decimalSeparator', '.')
-            csvFileFormat.set_attrib('separator', ';')
-            self.add_entry(csvFileFormat)
     
     def set_data(self, data:list, **kwargs):
         """
@@ -420,7 +419,8 @@ class CsvFileEntry(FileEntry):
 
         assert 'csvFileFormat' in self.__dict__, 'csvFileFormat information'\
                                     'missing: No separator and decimal set'
-        assert isinstance(data, (list,np.ndarray)),'data must be list of lists'
+        assert isinstance(data, (list, np.ndarray)),\
+            f'data must be list of lists, is {type(data)}'
         
         sep = self.csvFileFormat.separator
         dec = self.csvFileFormat.decimalSeparator

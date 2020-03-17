@@ -23,6 +23,8 @@ todo: csvFileFormat standard
 todo: add data
 todo: channel to valuesentry
 todo: parent in folder/parent
+todo: access with shortcut to getitem
+todo: removentry with shortcut / upper / lower
 
 @author: skjerns
 """
@@ -191,7 +193,7 @@ class Unisens(Entry):
                 logging.error(f'{entry.id} already present in Unisens')
                 return self
             self.entries[entry.id] = entry
-        super().add_entry(entry)
+        super().add_entry(entry, stack=False)
         return self
     
     
@@ -248,7 +250,6 @@ class Unisens(Entry):
             filename = os.path.basename(self._file)
             
         file = os.path.join(folder, filename)
-
         ET.register_namespace("", "http://www.unisens.org/unisens2.0")
         element = self.to_element()
         indent(element)

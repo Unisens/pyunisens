@@ -8,6 +8,8 @@ Stable version can be installed via `pip install pyunisens`
 
 or most recent version via `pip install git+https://github.com/skjerns/pyUnisens`
 
+`pyUnisens` is running only on Python 3.6+
+
 ## Quickstart
 
 You can load any unisens object simply like this

@@ -13,7 +13,7 @@ import unittest
 import shutil
 import tempfile
 import numpy as np
-
+import logging
 
 
 
@@ -159,6 +159,10 @@ class Testing(unittest.TestCase):
             entry.set_attrib('key1', 'value1')
             entry.key2 = 'value2'
             u.add_entry(entry)
+            if entrytype == CustomEntry:
+                entry.set_data('test')
+            else:
+                entry.set_data([[1,2,3],[1,2,3]])
 
         self.assertEqual(len(u), 4)
         self.assertEqual(len(u.entries), 4)
@@ -319,7 +323,6 @@ class Testing(unittest.TestCase):
         example1 = os.path.join(os.path.dirname(__file__), 'Example_001')
         example2 = os.path.join(os.path.dirname(__file__), 'Example_002')
         example3 = os.path.join(os.path.dirname(__file__), 'Example_003')
-        
         for example in [example1, example2, example3]:
             u1 = Unisens(example)
             entry = MiscEntry('test')
@@ -328,8 +331,10 @@ class Testing(unittest.TestCase):
             u2 = Unisens(self.tmpdir)
             self.assertTrue(elements_equal(u1.to_element(), u2.to_element()))
             u2.add_entry(MiscEntry('test2'))
+            u2.save()
+            u2 = Unisens(self.tmpdir)
             self.assertFalse(elements_equal(u1.to_element(), u2.to_element()))
-        
+
 
     def test_load_data(self):
         example1 = os.path.join(os.path.dirname(__file__), 'Example_001')
@@ -564,7 +569,72 @@ class Testing(unittest.TestCase):
             u2['test2']
         
         
-     
+    def test_nostacking(self):
+        """this is not officially supported, but useful"""
+        folder = tempfile.mkdtemp(prefix='unisens_')
+        
+        c = CustomEntry(id='test.bin', parent=folder)
+        f = FileEntry('feat1.txt', parent=folder)
+        c.add_entry(f.copy())
+        c.add_entry(f.copy())
+        self.assertEqual(len(c), 2)
+        
+        c = CustomEntry(id='test.bin', parent=folder)
+        f = FileEntry('feat1.txt', parent=folder)
+        c.add_entry(f.copy(), stack=False)
+        c.add_entry(f.copy(), stack=False)
+        self.assertEqual(len(c), 1)
+        
+        
+        c = CustomEntry(id='test.bin', parent=folder)
+        f = MiscEntry(name='Test', parent=folder)
+        c.add_entry(f.copy())
+        c.add_entry(f.copy())
+        self.assertEqual(len(c), 2)
+        
+        c = CustomEntry(id='test.bin', parent=folder)
+        f = MiscEntry(name='Test', parent=folder)
+        c.add_entry(f.copy(), stack=False)
+        c.add_entry(f.copy(), stack=False)
+        self.assertEqual(len(c), 1)
+        
+    def test_indexfinding(self):
+        """try whether the index finding method is working correctly"""
+        folder = tempfile.mkdtemp(prefix='unisens_')
+        
+        c = CustomEntry(id='test.bin', parent=folder)
+        FileEntry('feat1.txt', parent=c)
+        FileEntry('FEAT1.bin', parent=c)
+        FileEntry('feat2.txt', parent=c)
+        
+        self.assertEqual(c._get_index('feat2'), (2, 'feat2_txt'))
+        self.assertEqual(c._get_index('feat2.txt'), (2, 'feat2_txt'))
+        self.assertEqual(c._get_index('feat2_txt'), (2, 'feat2_txt'))
+        self.assertEqual(c._get_index('feat1.txt'), (0, 'feat1_txt'))
+        self.assertEqual(c._get_index('feat1_txt'), (0, 'feat1_txt'))
+        self.assertEqual(c._get_index('feat1.bin'), (1, 'FEAT1_bin'))
+        self.assertEqual(c._get_index('feat1_bin'), (1, 'FEAT1_bin'))
+        
+        
+        self.assertEqual(c._get_index('fEAT2'), (2, 'feat2_txt'))
+        self.assertEqual(c._get_index('fEAT2.txt'), (2, 'feat2_txt'))
+        self.assertEqual(c._get_index('fEAT2_txt'), (2, 'feat2_txt'))
+        self.assertEqual(c._get_index('fEAT1.txt'), (0, 'feat1_txt'))
+        self.assertEqual(c._get_index('fEAT1_txt'), (0, 'feat1_txt'))
+        self.assertEqual(c._get_index('fEAT1.bin'), (1, 'FEAT1_bin'))
+        self.assertEqual(c._get_index('fEAT1_bin'), (1, 'FEAT1_bin'))
+        
+        with self.assertRaises(KeyError):
+            c._get_index('feat1')
+          
+        with self.assertRaises(KeyError):
+            c._get_index('FEAT1') 
+            
+        with self.assertRaises(KeyError):
+            c._get_index('feat0')
+            
+        
+        
 if __name__ == '__main__':
     unittest.main()
 
