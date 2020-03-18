@@ -56,10 +56,19 @@ class Entry():
             self.set_attrib(name, value)
 
 
+    def __getattr__(self, key):
+        try:
+            i, key = self._get_index(key)
+            return self.__dict__[key]
+        except:  
+            return self.__getattribute__(key)
+        raise KeyError(f'{key} not found')
+
+
     def __getitem__(self, key):
         if isinstance(key, str):
             i, key = self._get_index(key)
-            return self._entries[i]
+            return self.__dict__[key]
         elif isinstance(key, int):
             return self._entries[key]
         raise KeyError(f'{key} not found')
@@ -91,7 +100,7 @@ class Entry():
         return True
     
 
-    def _get_index(self, id_or_name):
+    def _get_index(self, id_or_name, raises=True):
         """
         for a given id or name get the index of the entry in ._entries
         and the key of the entry in __dict__
@@ -151,6 +160,7 @@ class Entry():
         # if an entry already exists with this exact name
         # we put the entry inside of a list and append the new entry
         # with the same name. This way all entries are saved
+        name = make_key(name)
         if name in self.__dict__:
             if isinstance(self.__dict__[name], list):
                 self.__dict__[name].append(entry)
@@ -677,6 +687,7 @@ class MiscEntry(Entry):
         if key and value:
             self.set_attrib(key, value)
         self._autosave()
+        
         
 class CustomAttribute(MiscEntry):
     def __new__(*args,**kwargs):

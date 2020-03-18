@@ -72,7 +72,7 @@ class Unisens(Entry):
     """
     def __init__(self, folder, makenew=False, autosave=False, readonly=False,
                  comment:str='', duration:int=0, measurementId:str='NaN', 
-                 timestampStart='', file='unisens.xml'):
+                 timestampStart='', filename='unisens.xml'):
         """
         Initializes a Unisens object.
         If a unisens.xml file is already present in the folder, it will load
@@ -90,7 +90,7 @@ class Unisens(Entry):
             'either read-only or autosave can be enabled'
         assert isinstance(folder, str), f'folder must be string, is {folder}'
         self._folder = folder
-        self._file = os.path.join(folder, file)
+        self._file = os.path.join(folder, filename)
         os.makedirs(folder, exist_ok=True)
         folder = os.path.dirname(folder + '/')
 
@@ -102,7 +102,7 @@ class Unisens(Entry):
         if os.path.isfile(self._file) and not makenew:
             logging.info('loading unisens.xml from {}'.format(\
                          self._file))
-            self.read_unisens(folder)
+            self.read_unisens(folder, filename=filename)
         else:
             logging.info('New unisens.xml will be created at {}'.format(\
                          self._file))
@@ -189,9 +189,8 @@ class Unisens(Entry):
         """
         entry._folder = self._folder
         if isinstance(entry, FileEntry):
-            if entry.id in self:
-                logging.error(f'{entry.id} already present in Unisens')
-                return self
+            if entry.id in self:            
+                raise KeyError(f'{entry.id} already present in Unisens')
             self.entries[entry.id] = entry
         super().add_entry(entry, stack=False)
         return self
@@ -265,7 +264,7 @@ class Unisens(Entry):
             self.save()
             
             
-    def read_unisens(self, folder:str) -> Entry:
+    def read_unisens(self, folder:str, filename='unisens.xml') -> Entry:
         """
         Loads an XML Unisens file into this Unisens object.
         That means, self.attrib and self.children are added
@@ -275,7 +274,7 @@ class Unisens(Entry):
         :returns: self
         """
         folder += '/' # to avoid any ospath errors and confusion, append /
-        file = os.path.join(os.path.dirname(folder), 'unisens.xml')
+        file = os.path.join(os.path.dirname(folder), filename)
         if not os.path.exists(file):
             raise FileNotFoundError('{} does not exist'.format(folder))
             

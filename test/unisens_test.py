@@ -18,21 +18,11 @@ import logging
 
 
 def elements_equal(e1, e2):
-    if e1.tag != e2.tag: 
-        print(f'tag not same {e1.tag}!={e2.tag}')
-        return False
-    if e1.text != e2.text: 
-        print(f'text not same {e1.text}!={e2.text}')
-        return False
-    if e1.tail != e2.tail: 
-        print(f'tail not same {e1.tail}!={e2.tail}')
-        return False
-    if e1.attrib != e2.attrib: 
-        print(f'attrib not same {e1.attrib}!={e2.attrib}')
-        return False
-    if len(e1) != len(e2): 
-        print(f'length not same {len(e1)}!={len(e2)}, {e1}, {e2}')
-        return False
+    assert e1.tag == e2.tag, f'tag not same {e1.tag}!={e2.tag}'
+    assert e1.text == e2.text, f'text not same {e1.text}!={e2.text}'
+    assert e1.tail == e2.tail, f'tail not same {e1.tail}!={e2.tail}'
+    assert e1.attrib == e2.attrib, f'attrib not same {e1.attrib}!={e2.attrib}'
+    assert len(e1) == len(e2), f'length not same {len(e1)}!={len(e2)}, {e1}, {e2}'
     return all([elements_equal(c1, c2) for c1, c2 in zip(e1, e2)])
 
 
@@ -189,7 +179,8 @@ class Testing(unittest.TestCase):
         
         for i,entrytype in enumerate([CustomEntry, ValuesEntry,
                                       SignalEntry, EventEntry]):
-            entry = entrytype(parent=folder, id='test'+str(i)+'.csv')
+            entry = entrytype(parent=folder, id=f'test{i}.csv')
+            with open(os.path.join(entry._folder, f'test{i}.csv'), 'w'):pass
             entry.set_attrib('key1', 'value1')
             entry.key2 = 'value2'
             u.add_entry(entry)
@@ -325,15 +316,16 @@ class Testing(unittest.TestCase):
         example3 = os.path.join(os.path.dirname(__file__), 'Example_003')
         for example in [example1, example2, example3]:
             u1 = Unisens(example)
-            entry = MiscEntry('test')
+            entry = MiscEntry('group')
             u1.add_entry(entry)
-            u1.save(folder = self.tmpdir)
-            u2 = Unisens(self.tmpdir)
+            u1.save(filename='test.xml')
+            u2 = Unisens(folder=u1._folder, filename='test.xml')
             self.assertTrue(elements_equal(u1.to_element(), u2.to_element()))
-            u2.add_entry(MiscEntry('test2'))
-            u2.save()
-            u2 = Unisens(self.tmpdir)
-            self.assertFalse(elements_equal(u1.to_element(), u2.to_element()))
+            u2.add_entry(MiscEntry('binFileFormat'))
+            u2.save(filename='test.xml')
+            u2 = Unisens(folder=u1._folder,filename='test.xml')
+            with self.assertRaises(AssertionError):
+                elements_equal(u1.to_element(), u2.to_element())
 
 
     def test_load_data(self):
@@ -521,9 +513,12 @@ class Testing(unittest.TestCase):
         """this is not officially supported, but useful"""
         folder = tempfile.mkdtemp(prefix='unisens_x')
         u = Unisens(folder, makenew=True, autosave=True)
-        c = CustomEntry(id='test.bin', parent=u)
+        c = CustomEntry(id='test.bin', parent=u).set_data(b'123')
         CustomEntry('feat1.txt', parent=c).set_data('123')
         CustomEntry('feat2.txt', parent=c).set_data('456')
+        self.assertEqual(u['test']['feat1'].get_data(), '123')
+        self.assertEqual(u['test']['feat2'].get_data(), '456')
+        
         u = Unisens(folder)
         self.assertEqual(u['test']['feat1'].get_data(), '123')
         self.assertEqual(u['test']['feat2'].get_data(), '456')
@@ -545,6 +540,7 @@ class Testing(unittest.TestCase):
         self.assertTrue(os.path.isfile(file1))
         self.assertTrue(os.path.isfile(file2))
         self.assertFalse(os.path.isfile(file3))
+        with open(os.path.join(folder, 'test.bin'), 'w'):pass
         u = Unisens(folder)
         self.assertEqual(u['test']['feat1'].get_data(), '123')
         self.assertEqual(u['test']['sub/feat2.txt'].get_data(), '456')
@@ -585,18 +581,21 @@ class Testing(unittest.TestCase):
         c.add_entry(f.copy(), stack=False)
         self.assertEqual(len(c), 1)
         
-        
         c = CustomEntry(id='test.bin', parent=folder)
         f = MiscEntry(name='Test', parent=folder)
-        c.add_entry(f.copy())
-        c.add_entry(f.copy())
+        c.add_entry(f.copy().set_attrib('test1','val1'))
+        c.add_entry(f.copy().set_attrib('test2','val2'))
         self.assertEqual(len(c), 2)
+        self.assertEqual(c['test'][0].test1, 'val1')
+        self.assertEqual(c['test'][1].test2, 'val2')
         
         c = CustomEntry(id='test.bin', parent=folder)
         f = MiscEntry(name='Test', parent=folder)
-        c.add_entry(f.copy(), stack=False)
-        c.add_entry(f.copy(), stack=False)
+        c.add_entry(f.copy().set_attrib('test1','val1'), stack=False)
+        c.add_entry(f.copy().set_attrib('test2','val2'), stack=False)
         self.assertEqual(len(c), 1)
+        self.assertEqual(c['test'].test2, 'val2')
+        
         
     def test_indexfinding(self):
         """try whether the index finding method is working correctly"""
@@ -634,7 +633,28 @@ class Testing(unittest.TestCase):
             c._get_index('feat0')
             
         
+    def test_nooverwrite(self):
+        folder = tempfile.mkdtemp(prefix='unisens_copy')
+        u = Unisens(folder, makenew=True, autosave=True)
+        c = CustomEntry('test.txt', parent=u).set_attrib('a1', 'b1')
+        self.assertEqual(u.test.a1, 'b1')
+        with self.assertRaises(KeyError):
+            c = CustomEntry('test.txt', parent=u).set_attrib('a2', 'b2')
+            CustomEntry('asd.bin', parent=c)
+      
         
+    def test_loaddifferentfile(self):
+        folder = tempfile.mkdtemp(prefix='unisens_newfile')
+        u = Unisens(folder, makenew=True, autosave=False)
+        c = CustomEntry('test.txt', parent=u).set_attrib('a1', 'b1').set_data('test')
+        u.save(filename='test.xml')
+        self.assertTrue(os.path.isfile(os.path.join(u._folder, 'test.xml')))
+        u1 = Unisens(folder, autosave=False)
+        u2 = Unisens(folder, filename='test.xml', autosave=False)
+        
+        self.assertNotIn('test', u1)
+        self.assertTrue(elements_equal(u.to_element(), u2.to_element()))
+
 if __name__ == '__main__':
     unittest.main()
 
