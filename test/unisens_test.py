@@ -528,18 +528,13 @@ class Testing(unittest.TestCase):
         folder = tempfile.mkdtemp(prefix='unisens_x')
         u = Unisens(folder, makenew=True, autosave=True)
         c = CustomEntry(id='test.bin', parent=u)
-        CustomEntry('sub/feat1.txt', parent=c).set_data('123')
-        CustomEntry('sub\\feat2.txt', parent=c).set_data('456')
+        c1=CustomEntry('sub/feat1.txt', parent=c).set_data('123')
+        c2=CustomEntry('sub\\feat2.txt', parent=c).set_data('456')
         with self.assertRaises(ValueError):
             CustomEntry('\\sub\\feat3.txt', parent=c).set_data('789')
             
-        file1 = os.path.join(folder, 'sub', 'feat1.txt')
-        file2 = os.path.join(folder, 'sub', 'feat2.txt')
-        file3 = os.path.join(folder, 'sub', 'feat3.txt')
-
-        self.assertTrue(os.path.isfile(file1), f'{file2} not found')
-        self.assertTrue(os.path.isfile(file2), f'{file2} not found')
-        self.assertFalse(os.path.isfile(file3))
+        self.assertTrue(os.path.isfile(c1._filename), f'{c1._filename} not found')
+        self.assertTrue(os.path.isfile(c2._filename), f'{c2._filename} not found')
         with open(os.path.join(folder, 'test.bin'), 'w'):pass
         u = Unisens(folder)
         self.assertEqual(u['test']['feat1'].get_data(), '123')
@@ -654,8 +649,24 @@ class Testing(unittest.TestCase):
         
         self.assertNotIn('test', u1)
         self.assertTrue(elements_equal(u.to_element(), u2.to_element()))
-
+        
+    def test_loaddifferentfile(self):
+        folder = tempfile.mkdtemp(prefix='unisens')
+        u = Unisens(folder, makenew=True, autosave=True)
+        CustomEntry('test.bin', parent=u).set_data(b'test')
+        u.remove_entry('test.bin')
+        
+        CustomEntry('test.bin', parent=u).set_data(b'test')
+        u.remove_entry('test')
+        
+        CustomEntry('test.bin', parent=u).set_data(b'test')
+        u.remove_entry('test_bin') 
+        
+        
 if __name__ == '__main__':
+    
+    
+    
     unittest.main()
 
 

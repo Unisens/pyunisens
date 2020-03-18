@@ -224,7 +224,8 @@ class Unisens(Entry):
             name = element.tag
             entry = MiscEntry(name=name, attrib=attrib, parent=self._folder)
         else:
-            logging.warning('Unknown entry type: {}'.format(entryType))
+            if not 'Entry' in element.tag:
+                logging.warning('Unknown entry type: {}'.format(entryType))
             name = element.tag
             entry = MiscEntry(name=name, attrib=attrib, parent=self._folder)
         for subelement in element:

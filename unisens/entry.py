@@ -132,7 +132,20 @@ class Entry():
         
     
     def copy(self):
-        return deepcopy(self)
+        """
+        Create a deep copy of this Entry.
+        All references to the parent Unisens object will be removed before.
+        
+        :returns copy: a Entry object with all attributes as the invoking object
+        """
+        if hasattr(self, '_parent'):
+            _parent = self._parent
+            del self._parent
+            copy = deepcopy(self)
+            self._parent = _parent
+        else:
+            copy = deepcopy(self)
+        return copy
     
     
     def add_entry(self, entry:'Entry', stack=True):
@@ -175,9 +188,14 @@ class Entry():
 
     def remove_entry(self, name):
         i, key = self._get_index(name)
+        entry = self._entries[i]
         del self._entries[i]
         del self.__dict__[key]
-        raise KeyError(f'cannot find entry {name}')
+        # if this is an unisens object, also delete the referer there
+        if hasattr(self, 'entries'):
+            for key, e in self.entries.items():
+                if e==entry: del self.entries[key]
+        return self
 
 
     def set_attrib(self, name:str, value:str):
@@ -330,7 +348,7 @@ class SignalEntry(FileEntry):
                 dtype = str(data[0].dtype)
             else:
                 dtype = type(data[0][0])
-                if dtype==np.int64: dtype=np.int32
+            if dtype==np.int64: dtype=np.int32
             data = np.array(data, dtype=dtype)
         
         data = np.atleast_2d(data)
@@ -611,6 +629,7 @@ class CustomEntry(FileEntry):
             logging.warn('json_tricks not installed, can\'t save numpy array'\
                          'automatically. install with pip install json-tricks')
         
+        # infer datatype automatically
         if dtype=='auto':
             ext = os.path.splitext(self._filename)[-1].lower()
             txt_exts = ['.txt', '.csv', '.ini']
@@ -626,7 +645,8 @@ class CustomEntry(FileEntry):
                 dtype='numpy'
             else:
                 dtype='binary'
-                
+          
+        # file saving from here on
         if dtype=='binary':
             with open(self._filename, 'wb') as f:
                 f.write(data)
