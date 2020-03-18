@@ -537,8 +537,8 @@ class Testing(unittest.TestCase):
         file2 = os.path.join(folder, 'sub', 'feat2.txt')
         file3 = os.path.join(folder, 'sub', 'feat3.txt')
 
-        self.assertTrue(os.path.isfile(file1))
-        self.assertTrue(os.path.isfile(file2))
+        self.assertTrue(os.path.isfile(file1), f'{file2} not found')
+        self.assertTrue(os.path.isfile(file2), f'{file2} not found')
         self.assertFalse(os.path.isfile(file3))
         with open(os.path.join(folder, 'test.bin'), 'w'):pass
         u = Unisens(folder)
