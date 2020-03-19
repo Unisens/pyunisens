@@ -348,7 +348,7 @@ class SignalEntry(FileEntry):
                 dtype = str(data[0].dtype)
             else:
                 dtype = type(data[0][0])
-            if dtype==np.int64: dtype=np.int32
+            if dtype==np.int64 or dtype==int: dtype=np.int32
             data = np.array(data, dtype=dtype)
         
         data = np.atleast_2d(data)
