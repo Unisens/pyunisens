@@ -25,6 +25,7 @@ todo: channel to valuesentry
 todo: parent in folder/parent
 todo: access with shortcut to getitem
 todo: removentry with shortcut / upper / lower
+todo: coherent attribute setting in __init__ and set_data()
 
 @author: skjerns
 """

@@ -21,7 +21,7 @@
    <eventEntry comment="reference qrs trigger list, 200Hz, done with Padys" contentClass="TRIGGER" id="trig_ref.csv" sampleRate="200" source="Padsy" typeLength="1">
       <csvFileFormat decimalSeparator="." separator=";"/>
    </eventEntry>
-   <eventEntry comment="test qrs trigger list, 200Hz, done with osea on dry electrodes (ecg200.bin:dry electrodes)" contentClass="TRIGGER" id="trig_test_osea_dry.csv" sampleRate="200" source="osea" typeLength="1">
+   <eventEntry comment="test qrs trigger list, 200Hz, done with osea on dry electrodes (ecg200.bin:dry electrodes)" contentClass="TRIGGER" id="trig_test_osea_dry.csv" sampleRate="200" source="osea" typeLength="1" commentLength="2">
       <csvFileFormat decimalSeparator="." separator=";"/>
    </eventEntry>
    <valuesEntry comment="Bloodpressure cuff left upper arm" contentClass="RR" dataType="double" id="bp.csv" sampleRate="1" unit="mmHg">
