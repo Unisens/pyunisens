@@ -15,6 +15,17 @@ lowercase = lambda s: s[:1].lower() + s[1:] if s else ''
 
 
 def indent(elem, level=0):
+    """
+    A helper function that indents XML tags automatically
+
+    Parameters
+    ----------
+    elem : Element
+        A xml.etree.Element
+    level : int, optional
+        Level of intendation. The default is 0.
+    """
+    
     i = "\n" + level * "   "
     if len(elem):
         if not elem.text or not elem.text.strip():

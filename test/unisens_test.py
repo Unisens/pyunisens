@@ -377,7 +377,7 @@ class Testing(unittest.TestCase):
         data = np.asarray(data)
         self.assertEqual(data.sum(), 706817789)
    
-
+   
 
 
     def test_save_signalentry(self):
@@ -399,6 +399,37 @@ class Testing(unittest.TestCase):
         u = Unisens(folder, makenew=True)
         
         
+    def test_save_customtypes(self):
+        folder = os.path.join(self.tmpdir, 'data', 'customtypes')
+        from collections import OrderedDict
+        u = Unisens(folder, makenew=True)
+        image = np.random.randint(0, 128, (512, 512, 3), dtype=np.uint8)
+        data = OrderedDict({'test':'test', 'asdv': '2345', 'adfg':['3','34','234']})
+        text = 'asd,123;456\qwe,678;678'
+        
+        image_exts = ['.jpeg', '.jpg', '.bmp', '.png', '.tif', '.gif']
+        for ext in image_exts:
+            custom = CustomEntry(f'image{ext}', parent=u)
+            custom.set_data(image)
+        
+
+        CustomEntry('data.npy', parent=u).set_data(image)
+        CustomEntry('pickle.pkl', parent=u).set_data(data)
+        CustomEntry('json.json', parent=u).set_data(data)
+        CustomEntry('text.txt', parent=u).set_data(text)
+        CustomEntry('text.csv', parent=u).set_data(text)
+        u.save()
+        
+        u = Unisens(folder)
+        np.testing.assert_array_equal(u['image.png'].get_data(), image)
+        np.testing.assert_array_equal(u['image.bmp'].get_data(), image)
+        np.testing.assert_array_equal(u['image.tif'].get_data(), image)
+        self.assertEqual(u['text.csv'].get_data(), text)
+        self.assertEqual(u['text.txt'].get_data(), text)
+        self.assertDictEqual(u['json.json'].get_data(), data)
+        np.testing.assert_array_equal(u['data.npy'].get_data(), image)
+        self.assertDictEqual(u['pickle.pkl'].get_data(), data)
+
         
     def test_save_csvetry(self):
         self.tmpdir = tempfile.mkdtemp(prefix='unisens')

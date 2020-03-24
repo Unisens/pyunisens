@@ -4,6 +4,7 @@ Created on Mon Jan  6 21:16:58 2020
 
 @author: skjerns
 """
+import importlib
 import os, sys
 import numpy as np
 import logging
@@ -13,6 +14,17 @@ from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
 from copy import deepcopy
 
+
+
+def get_module(name):
+    try:
+        module = importlib.import_module(name)
+        return module
+    except ModuleNotFoundError:
+        print(f'{name} is not installed. Install with pip install {name}')
+        return False
+    raise Exception(f'Cant load module {name}')
+    
 
 class Entry():
     """
@@ -571,7 +583,7 @@ class CsvFileEntry(FileEntry):
         ----------
         data : list
             the data as list or np array.
-        **kwargs : TYPE
+        **kwargs : str
             DESCRIPTION.
         """
     
@@ -687,17 +699,12 @@ class CustomEntry(FileEntry):
             image: .jpeg .jpg .bmp .png .tif .gif
             json:  .json (using json-tricks or json)
             numpy: .npy
+            pickle: .pkl
             binary: anything else
         
         :param dtype: [binary, image, text, numpy, json]
         :returns: the binary data or the otherwise loaded data
         """
-        try:
-            import json_tricks as json
-        except:
-            import json
-            logging.warn('json_tricks not installed, can\'t load numpy array '\
-                         'automatically. install with pip install json-tricks')
 
         if dtype=='auto':
             ext = os.path.splitext(self._filename)[-1].lower()
@@ -712,6 +719,8 @@ class CustomEntry(FileEntry):
                 dtype='json'
             elif ext=='.npy':
                 dtype='numpy'
+            elif ext=='.pkl':
+                dtype='pickle'
             else:
                 dtype='binary'
                 
@@ -722,16 +731,18 @@ class CustomEntry(FileEntry):
             with open(self._filename, 'r') as f:
                 data = f.read()
         elif dtype=='image':
-            try: 
-                import imageio
-                data = imageio.imread(self._filename)
-            except: 
-                logging.error('can\'t load: imageio not installed. \n'\
-                                  'run pip install imageio')
-                with open(self._filename, 'rb') as f:
-                    data = f.read()
-            
+            imageio = get_module('imageio')
+            data = imageio.imread(self._filename)
+
+        elif dtype=='pickle':
+            pickle = get_module('pickle')
+            with open(self._filename, 'rb') as f:
+                data = pickle.load(f)
         elif dtype=='json':
+            try:
+                import json_tricks as json
+            except:
+                json = get_module('json')
             with open(self._filename, 'r') as f:
                 data = json.load(f)
         elif dtype=='numpy':
@@ -751,15 +762,7 @@ class CustomEntry(FileEntry):
         :returns: the binary data or an PIL.Image
         """
         self._check_readonly()
-        try:
-            import json_tricks as json
-            tricks_installed = True
-        except:
-            import json
-            tricks_installed = False
-            logging.warn('json_tricks not installed, can\'t save numpy array'\
-                         'automatically. install with pip install json-tricks')
-        
+
         # infer datatype automatically
         if dtype=='auto':
             ext = os.path.splitext(self._filename)[-1].lower()
@@ -772,6 +775,8 @@ class CustomEntry(FileEntry):
                 dtype='text'
             elif ext=='.json':
                 dtype='json'
+            elif ext=='.pkl':
+                dtype='pickle'
             elif ext=='.npy':
                 dtype='numpy'
             else:
@@ -785,11 +790,19 @@ class CustomEntry(FileEntry):
             with open(self._filename, 'w') as f:
                 f.write(data)
         elif dtype=='image':
-            try: import imageio
-            except: logging.error('can\'t save: imageio not installed. \n'\
-                                  'run pip install imageio')
+            imageio = get_module('imageio')
             imageio.imsave(self._filename, data)
+        elif dtype=='pickle':
+            pickle = get_module('pickle')
+            with open(self._filename, 'wb') as f:
+                data = pickle.dump(data, f)
         elif dtype=='json':
+            try:
+                import json_tricks as json
+                tricks_installed = True
+            except:
+                json = get_module('json')
+                tricks_installed = False   
             with open(self._filename, 'w') as f:
                 if tricks_installed:
                     json.dump(data, f, allow_nan=True)
