@@ -40,22 +40,6 @@ from .utils import AttrDict, strip, validkey, lowercase, make_key, indent
   
 
 
-def pack(xmldict):
-    """
-    Packs a dictionary back into elements with subclasses
-    """
-    attrib = {}
-    children = []
-    for key, value in xmldict.items():
-        if isinstance(value, dict):
-            _attrib, _children = pack(value)
-            children.extent(_children)
-            child = Element(key, attrib)
-            children.append(child)
-        else:
-            attrib[key] = value
-    return attrib, children
-
 
     
 class Unisens(Entry):
