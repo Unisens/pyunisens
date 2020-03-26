@@ -376,7 +376,9 @@ class Testing(unittest.TestCase):
         data = custom.get_data(dtype='image')       
         data = np.asarray(data)
         self.assertEqual(data.sum(), 706817789)
-   
+        
+        self.assertEqual('Unisens: Example_001(0:00:00, 9 entries)', str(u))
+
    
 
 
@@ -673,6 +675,8 @@ class Testing(unittest.TestCase):
         folder = tempfile.mkdtemp(prefix='unisens_newfile')
         u = Unisens(folder, makenew=True, autosave=False)
         c = CustomEntry('test.txt', parent=u).set_attrib('a1', 'b1').set_data('test')
+        self.assertEqual(str(c), '<customEntry(test.txt)>')
+        self.assertEqual(repr(c), '<customEntry(test.txt)>')
         u.save(filename='test.xml')
         self.assertTrue(os.path.isfile(os.path.join(u._folder, 'test.xml')))
         u1 = Unisens(folder, autosave=False)
@@ -681,7 +685,7 @@ class Testing(unittest.TestCase):
         self.assertNotIn('test', u1)
         self.assertTrue(elements_equal(u.to_element(), u2.to_element()))
         
-    def test_loaddifferentfile(self):
+    def test_loaddifferentfile2(self):
         folder = tempfile.mkdtemp(prefix='unisens')
         u = Unisens(folder, makenew=True, autosave=True)
         CustomEntry('test.bin', parent=u).set_data(b'test')
@@ -692,6 +696,16 @@ class Testing(unittest.TestCase):
         
         CustomEntry('test.bin', parent=u).set_data(b'test')
         u.remove_entry('test_bin') 
+        
+    def test_repr_str(self):
+        folder = tempfile.mkdtemp(prefix='strrepr')
+        u = Unisens(folder, makenew=True, autosave=True)
+        u.measurementId = 'thisid'
+        u.duration = 60*2 + 60*60*2 + 5
+        a = str(u)
+        b = repr(u)
+        self.assertEqual(a,'Unisens: thisid(2:02:05, 0 entries)')
+        self.assertEqual(b,f'Unisens(comment=, duration=2:02:05,  id=thisid,timestampStart={u.timestampStart})')
         
         
 if __name__ == '__main__':

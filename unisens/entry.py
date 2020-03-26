@@ -795,7 +795,7 @@ class CustomEntry(FileEntry):
         elif dtype=='pickle':
             pickle = get_module('pickle')
             with open(self._filename, 'wb') as f:
-                data = pickle.dump(data, f)
+                data = pickle.dump(data, f, protocol=3)
         elif dtype=='json':
             try:
                 import json_tricks as json

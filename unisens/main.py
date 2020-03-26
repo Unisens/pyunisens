@@ -150,18 +150,16 @@ class Unisens(Entry):
         return s
     
     def __repr__(self):
-        comment = self.__dict__.get('comment', '')
+        comment = self.attrib.get('comment', '')
         comment = comment[:20] + '[..]'*(len(comment)>0)
-        duration = self.__dict__.get('duration', 0)
-        measurementId = self.__dict__.get('timestampStart', 0)
-        version = self.__dict__.get('version', '2.0')
-        timestampStart = self.__dict__.get('timestampStart', 0)
+        duration = self.attrib.get('duration', 0)
+        duration = str(datetime.timedelta(seconds=int(duration)))
+        measurementId = self.attrib.get('measurementId', 0)
+        timestampStart = self.attrib.get('timestampStart', 0)
 
-        s = 'Unisens(comment={}, duration={}, measurementId={}, ' \
-            'timestampStart={}, version={})'.format(comment, duration, 
-                                                    measurementId, 
-                                                    timestampStart, 
-              version)
+        s = f'Unisens(comment={comment}, duration={duration},  ' \
+            f'id={measurementId},timestampStart={timestampStart})'
+            
         return s
     
     
@@ -281,13 +279,3 @@ class Unisens(Entry):
         return self
 
 
-
-if __name__ == '__main__':
-    folder='C:/Users/Simon/Desktop/pyUnisens/unisens/example_003'
-    self = Unisens(folder)
-    # a = self.ecg_m500_250_bin
-    # # a = self.customAttributes
-    # a.newkey = 'newvalue'
-    
-    # self.save('test.xml')
-    
