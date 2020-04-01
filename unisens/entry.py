@@ -87,7 +87,7 @@ class Entry():
         try:
             i, key = self._get_index(key)
             return self.__dict__[key]
-        except:  
+        except KeyError:  
             return self.__getattribute__(key)
         raise KeyError(f'{key} not found')
 
@@ -174,7 +174,7 @@ class Entry():
                 if no_ext==id_or_name.upper():
                     found+=[(i, id)]
         if len(found)==1: return found[0]     
-        if len(found)>1: KeyError(f'More than one match for {id_or_name}: {found}')
+        if len(found)>1: ValueError(f'More than one match for {id_or_name}: {found}')
         raise KeyError(f'{id_or_name} not found')
         
     
@@ -593,7 +593,6 @@ class CsvFileEntry(FileEntry):
                                     'missing: No separator and decimal set'
         assert isinstance(data, (list, np.ndarray)),\
             f'data must be list of lists, is {type(data)}'
-        
         sep = self.csvFileFormat.separator
         dec = self.csvFileFormat.decimalSeparator
         
@@ -633,6 +632,34 @@ class CsvFileEntry(FileEntry):
             raise ValueError('Invalid mode: {}, select from'
                              '["numpy", "pandas", "list"]'.format(mode))
         return lines
+
+
+    def get_times(self):
+        """
+        Retrieves the times or samples of this CSV entry
+
+        Returns
+        -------
+        times
+            list of int or float denotating the times of the events
+        """
+        data = self.get_data()
+        times, _ = zip(*data)
+        return list(times)
+        
+    
+    def get_labels(self):
+        """
+        Retrieves the labels this CSV entry
+
+        Returns
+        -------
+        times
+            list of int or float denotating the times of the events
+        """
+        data = self.get_data()
+        _, labels = zip(*data)
+        return list(labels)
 
 
 class ValuesEntry(CsvFileEntry):

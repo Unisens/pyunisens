@@ -6,6 +6,7 @@ some helper functions
 
 @author: skjerns
 """
+from types import GeneratorType
 import numpy as np
 from collections import OrderedDict
 
@@ -86,7 +87,8 @@ def write_csv(csv_file, data_list, sep=';', decimal_sep='.', comment=None):
     """
     # we accept data_lists or arrays
     assert decimal_sep!=sep, 'Error, sep cannot be same as decimal_sep'
-    assert isinstance(data_list, (list, np.ndarray)), 'Must be list or array'
+    assert isinstance(data_list, (tuple, list, np.ndarray, GeneratorType)), \
+           'Must be list, tuple or array'
     if isinstance(data_list, np.ndarray):
         if data_list.ndim==1:
             data_list = [line for line in data_list]
@@ -105,7 +107,7 @@ def write_csv(csv_file, data_list, sep=';', decimal_sep='.', comment=None):
     for line in data_list:
         # if it contains several elements, we separate them with sep.
         # additionally we convert the decimal separator
-        if isinstance(line, (list, np.ndarray)):            
+        if isinstance(line, (list, np.ndarray, tuple)):            
             csv_string += sep.join([num2str(e, decimal_sep)for e in line])
         # if it's not a list, we just convert to string
         else:
