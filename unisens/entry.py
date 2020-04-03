@@ -4,6 +4,7 @@ Created on Mon Jan  6 21:16:58 2020
 
 @author: skjerns
 """
+import importlib
 import os, sys
 import numpy as np
 import logging
@@ -14,12 +15,37 @@ from xml.etree.ElementTree import Element
 from copy import deepcopy
 
 
+
+def get_module(name):
+    try:
+        module = importlib.import_module(name)
+        return module
+    except ModuleNotFoundError:
+        print(f'{name} is not installed. Install with pip install {name}')
+        return False
+    raise Exception(f'Cant load module {name}')
+    
+
 class Entry():
     """
-    Hello, it's me, Entry
+    Base class for Unisens entries. All other entries inherit from this.
     
-    :param test:test
+    An Entry has an .attrib dict that specifies the attributes.
+    It can have a parent object and child-entries.
+    Attributes can be set via Entry.set_attrib(name, value) or directly
+    via setting instance.name = value.
+    Children can be accessed via instance['child'] or instance.child
+
+    Parameters
+    ----------
+    attrib : dict, optional
+        DESCRIPTION. an attribute dictionary  e.g. {duration:'4'}
+    parent : Entry, optional
+        DESCRIPTION. a folder or a Entry type.
+    **kwargs : TYPE
+        DESCRIPTION.
     """
+    
     def __len__(self):
         return len(self._entries)
     
@@ -30,6 +56,8 @@ class Entry():
         return "<{}({})>".format(self._name, self.attrib)
  
     def __init__(self, attrib=None, parent='.', **kwargs):
+
+        
         if attrib is None: 
             attrib=dict()
         self.attrib = attrib
@@ -45,8 +73,7 @@ class Entry():
     
     def __setattr__(self, name:str, value:str):
         """
-        This will allow to set new attributes with .attrname = value
-        while warning the user if builtin methods are overwritten
+        Allows settings of attributes via .name = value.
         """
         methods = dir(type(self))
         super.__setattr__(self, name, value)
@@ -60,7 +87,7 @@ class Entry():
         try:
             i, key = self._get_index(key)
             return self.__dict__[key]
-        except:  
+        except KeyError:  
             return self.__getattribute__(key)
         raise KeyError(f'{key} not found')
 
@@ -76,14 +103,14 @@ class Entry():
 
     def _autosave(self):
         """
-        if autosave is enabled, this function will call the autosave
-        function of parents until the Unisens object is reached and
-        then save when anything is changed.
+        if autosave is enabled, this function will call the autosave function
+        of parents until the uppermost Unisens object is reached and then
+        save when anything is changed.
         """
         try:
             if self._parent is not None:
                 self._parent._autosave()
-        except:
+        except: # there might an error, then do nothing.
             pass
 
     def _check_readonly(self):
@@ -102,9 +129,29 @@ class Entry():
 
     def _get_index(self, id_or_name, raises=True):
         """
-        for a given id or name get the index of the entry in ._entries
-        and the key of the entry in __dict__
+        Receive the index and key-name of an object.
+        
+        Sub-entries are saved at ._entries as objects in a list and
+        in the __dict__ of the parent. The name of the object is either
+        the id (eg. samples.csv), if it is a FileEntry, or the name 
+        (eg. binFileFormat). This name is made into a attribute-accessible 
+        key by make_key(), e.g. samples_csv. This function searches
+        for the entry in ._entry and returns its index as well as its
+        key name in the __dict__
+
+        Parameters
+        ----------
+        id_or_name : str
+            The name or id of the Entry.
+        raises : bool, optional
+            Raise an exception if not found. The default is True.
+
+        Returns
+        -------
+        [index in ._entries, key-name in __dict__].
+
         """
+
         id_or_name = make_key(id_or_name)
         
         # we don't care about case, gently ignoring Linux file case-sensitivity
@@ -127,16 +174,21 @@ class Entry():
                 if no_ext==id_or_name.upper():
                     found+=[(i, id)]
         if len(found)==1: return found[0]     
-        if len(found)>1: KeyError(f'More than one match for {id_or_name}: {found}')
+        if len(found)>1: ValueError(f'More than one match for {id_or_name}: {found}')
         raise KeyError(f'{id_or_name} not found')
         
     
     def copy(self):
         """
         Create a deep copy of this Entry.
+        
         All references to the parent Unisens object will be removed before.
         
-        :returns copy: a Entry object with all attributes as the invoking object
+        Returns
+        -------
+        copy : Entry
+            An Entry object with all attributes as the invoking object.
+
         """
         if hasattr(self, '_parent'):
             _parent = self._parent
@@ -148,13 +200,28 @@ class Entry():
         return copy
     
     
-    def add_entry(self, entry:'Entry', stack=True):
+    def add_entry(self, entry:'Entry', stack:bool=True):
         """
         Add an subentry to this entry
         
-        :param entry: A sub entry that should be added, eg CustomAttributes
-        :param replace: if the entry is already present it will not be stacked
-                        but replaced.
+        The Entry will be added to the ._entries list and
+        to the .__dict__ with its name or id as a key.
+        The subentry can be accessed via entry.entry_name, entry['entry_name']
+        or entry._entries[index]
+
+        Parameters
+        ----------
+        entry : Entry
+            a subentry that should be added.
+        stack : bool, optional
+            If True, an Entry with the same name/id will be added into a list.
+            If False, an already existing Entry will be overwritten.
+            The default is True.
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
         """
         # there are several Entries that have reserved names.
         # these should not exist double, therefore they are re-set here
@@ -187,6 +254,17 @@ class Entry():
         return self
 
     def remove_entry(self, name):
+        """
+        Removes an subentry by name.
+
+        Parameters
+        ----------
+        name : str
+            the name of the entry. 
+            Can be abbreviated, e.g. 'samples' instead of 'samples.csv'.
+
+        """
+        
         i, key = self._get_index(name)
         entry = self._entries[i]
         del self._entries[i]
@@ -207,12 +285,7 @@ class Entry():
         name : str
             The name of this attribute
         value : (str, int, float)
-            DESCRIPTION.
-
-        Returns
-        -------
-        self
-
+            value to be added. will be converted to string.
         """
         name = str(name)
         value = str(value)
@@ -224,16 +297,32 @@ class Entry():
     
     def get_attrib(self, name:str, default=None):
         """
-        This will allow to set new attributes with .attrname = value
-        while warning the user if builtin methods are overwritten
+        Retrieves an attribute of this Entry
+
+        Parameters
+        ----------
+        name : str
+            The name to be retrieved.
+        default : str, optional
+            What should be returned if not present. The default is None.
+
         """
-        return self.__dict__.get(name, default)
+
+        return self.attrib.get(name, default)
     
     def remove_attr(self, name:str):
         """
         Removes a custom attribute/value of this entry.
-        
-        :param key: The name of the custom attribute
+
+        Parameters
+        ----------
+        name : str
+            The name of the custom attribute.
+
+        Returns
+        -------
+        TYPE
+            DESCRIPTION.
         """
         if name in self.attrib: 
             del self.attrib[name]
@@ -245,6 +334,16 @@ class Entry():
         
 
     def to_element(self):
+        """
+        Converts this Entry and all its subentries into an XML Element.
+
+        Returns
+        -------
+        element : Element
+            An xml.etree.Element instance to be written to xml
+
+        """
+        
         element = Element(self._name, attrib=self.attrib.copy())
         element.tail = '\n'
         for subelement in self._entries:
@@ -253,6 +352,17 @@ class Entry():
     
     
     def to_xml(self):
+        """
+        Creates a string representing this Entry and all its sub-entries
+        as XML.
+
+        Returns
+        -------
+        str
+            XML string representing this Entry instance.
+
+        """
+        
         element = self.to_element()
         return ET.tostring(element).decode()
     
@@ -300,14 +410,20 @@ class SignalEntry(FileEntry):
         Will try to load the binary data using numpy.
         This might not always work as endianess can't be determined
         with numpy
-        
-        :param scaled: Scale values using scaling factor or return raw numbers
-        :param return_type: numpy, list or pandas. Pandas row indices have the 
-                            names of the corresponding channels. List will be
-                            in format [[ch_name1, data],[ch_name2, data]]
-                            numpy will be as plain numpy array without ch_names
+
+        Parameters
+        ----------
+        scaled : bool, optional
+            Scale values using lsb factor or return raw numbers.
+            The default is True.
+
+        Returns
+        -------
+        np.ndarray
+            The loaded binary data, in this case as numpy array.
+
         """
-        if return_type!='numpy': raise NotImplementedError
+
         n_channels = len(self.channel) if isinstance(self.channel, list) else 1
         dtypestr = self.dataType.lower()
         dtype = np.__dict__.get(dtypestr, f'UNKOWN_DATATYPE: {dtypestr}')
@@ -326,16 +442,35 @@ class SignalEntry(FileEntry):
         The data will in any case be saved with Endianness LITTLE,
         as this is the default for numpy. Data will be saved using
         numpy binary data output.
-        
-        :param data: an numpy array
-        :param dataType: the data type of the data. If None, is array.dtype.
-                         Will be used for binary stream output format.
-        :param sampleRate: the sample rate of this data
-        :param lsbValue: the value with which this data is scaled.
-                         this means that       
-        :param comment: sets a comment associated with this data
-        :param unit: the unit which is indicated, e.g. mV, Ohm, ...
-        :param contentClass: sets the content class, e.g. EEG, ECG, ...
+
+        Parameters
+        ----------
+        data : np.ndarray
+            an numpy array.
+        dataType : str, optional
+            The data type of the data. If None, is infered automatically.
+            Can be 'DOUBLE', 'FLOAT', 'INT16', 'INT32', 
+                   'INT8', 'UINT16', 'UINT32', 'UINT8'
+            Will be used for binary stream output format. The default is None.
+        ch_names : list, optional
+            DESCRIPTION. The default is None.
+        sampleRate : int, optional
+            the sample rate of this data. The default is 256.
+        lsbValue : float, optional
+            the value with which this data is scaled this means that. 
+            The default is 1.
+        unit : str, optional
+            the unit which is indicated, e.g. mV, Ohm. The default is None.
+        comment : str, optional
+            sets a comment associated with this data. The default is None.
+        contentClass : str, optional
+            sets the content class, e.g. EEG, ECG. The default is None.
+        adcResolution : int, optional
+            DESCRIPTION. The default is None.
+        baseline : float, optional
+            DESCRIPTION. The default is None.
+        **kwargs : TYPE
+            DESCRIPTION.
         """
         self._check_readonly()
 
@@ -421,7 +556,9 @@ class SignalEntry(FileEntry):
         return self        
 
 class CsvFileEntry(FileEntry):
-    
+    """
+    A FileEntry that links a csv file.
+    """
     def __init__(self, id=None, attrib=None, parent='.', 
                  decimalSeparator='.', separator=';', **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
@@ -439,18 +576,23 @@ class CsvFileEntry(FileEntry):
     
     def set_data(self, data:list, **kwargs):
         """
-        Set data to this csv object.
-        
-        :param data: the data as list or np array
-        :param comment: a comment, that will be added to the first line with #
+        Set data of this csv object.
+
+
+        Parameters
+        ----------
+        data : list
+            the data as list or np array.
+        **kwargs : str
+            DESCRIPTION.
         """
+    
         self._check_readonly()
 
         assert 'csvFileFormat' in self.__dict__, 'csvFileFormat information'\
                                     'missing: No separator and decimal set'
         assert isinstance(data, (list, np.ndarray)),\
             f'data must be list of lists, is {type(data)}'
-        
         sep = self.csvFileFormat.separator
         dec = self.csvFileFormat.decimalSeparator
         
@@ -490,6 +632,34 @@ class CsvFileEntry(FileEntry):
             raise ValueError('Invalid mode: {}, select from'
                              '["numpy", "pandas", "list"]'.format(mode))
         return lines
+
+
+    def get_times(self):
+        """
+        Retrieves the times or samples of this CSV entry
+
+        Returns
+        -------
+        times
+            list of int or float denotating the times of the events
+        """
+        data = self.get_data()
+        times, _ = zip(*data)
+        return list(times)
+        
+    
+    def get_labels(self):
+        """
+        Retrieves the labels this CSV entry
+
+        Returns
+        -------
+        times
+            list of int or float denotating the times of the events
+        """
+        data = self.get_data()
+        _, labels = zip(*data)
+        return list(labels)
 
 
 class ValuesEntry(CsvFileEntry):
@@ -556,17 +726,12 @@ class CustomEntry(FileEntry):
             image: .jpeg .jpg .bmp .png .tif .gif
             json:  .json (using json-tricks or json)
             numpy: .npy
+            pickle: .pkl
             binary: anything else
         
         :param dtype: [binary, image, text, numpy, json]
         :returns: the binary data or the otherwise loaded data
         """
-        try:
-            import json_tricks as json
-        except:
-            import json
-            logging.warn('json_tricks not installed, can\'t load numpy array '\
-                         'automatically. install with pip install json-tricks')
 
         if dtype=='auto':
             ext = os.path.splitext(self._filename)[-1].lower()
@@ -581,6 +746,8 @@ class CustomEntry(FileEntry):
                 dtype='json'
             elif ext=='.npy':
                 dtype='numpy'
+            elif ext=='.pkl':
+                dtype='pickle'
             else:
                 dtype='binary'
                 
@@ -591,16 +758,18 @@ class CustomEntry(FileEntry):
             with open(self._filename, 'r') as f:
                 data = f.read()
         elif dtype=='image':
-            try: 
-                import imageio
-                data = imageio.imread(self._filename)
-            except: 
-                logging.error('can\'t load: imageio not installed. \n'\
-                                  'run pip install imageio')
-                with open(self._filename, 'rb') as f:
-                    data = f.read()
-            
+            imageio = get_module('imageio')
+            data = imageio.imread(self._filename)
+
+        elif dtype=='pickle':
+            pickle = get_module('pickle')
+            with open(self._filename, 'rb') as f:
+                data = pickle.load(f)
         elif dtype=='json':
+            try:
+                import json_tricks as json
+            except:
+                json = get_module('json')
             with open(self._filename, 'r') as f:
                 data = json.load(f)
         elif dtype=='numpy':
@@ -620,15 +789,7 @@ class CustomEntry(FileEntry):
         :returns: the binary data or an PIL.Image
         """
         self._check_readonly()
-        try:
-            import json_tricks as json
-            tricks_installed = True
-        except:
-            import json
-            tricks_installed = False
-            logging.warn('json_tricks not installed, can\'t save numpy array'\
-                         'automatically. install with pip install json-tricks')
-        
+
         # infer datatype automatically
         if dtype=='auto':
             ext = os.path.splitext(self._filename)[-1].lower()
@@ -641,6 +802,8 @@ class CustomEntry(FileEntry):
                 dtype='text'
             elif ext=='.json':
                 dtype='json'
+            elif ext=='.pkl':
+                dtype='pickle'
             elif ext=='.npy':
                 dtype='numpy'
             else:
@@ -654,11 +817,19 @@ class CustomEntry(FileEntry):
             with open(self._filename, 'w') as f:
                 f.write(data)
         elif dtype=='image':
-            try: import imageio
-            except: logging.error('can\'t save: imageio not installed. \n'\
-                                  'run pip install imageio')
+            imageio = get_module('imageio')
             imageio.imsave(self._filename, data)
+        elif dtype=='pickle':
+            pickle = get_module('pickle')
+            with open(self._filename, 'wb') as f:
+                data = pickle.dump(data, f, protocol=3)
         elif dtype=='json':
+            try:
+                import json_tricks as json
+                tricks_installed = True
+            except:
+                json = get_module('json')
+                tricks_installed = False   
             with open(self._filename, 'w') as f:
                 if tricks_installed:
                     json.dump(data, f, allow_nan=True)
