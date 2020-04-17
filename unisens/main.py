@@ -119,6 +119,8 @@ class Unisens(Entry):
         """
         return Entry.__setattr__(self, name, value)
 
+
+
    
     def __contains__(self, item):
         try:
@@ -127,25 +129,26 @@ class Unisens(Entry):
         except:
             return False   
         
-    def __getitem__(self, key):
-        if isinstance(key, str):
-            # we don't care about case, gently ignoring Linux case-sensitivity
-            for k in self.entries: 
-                if k.upper()==key.upper():
-                    return self.entries[k]
-            # if this didn't work, we see if we find a unique 
-            found = 0
-            for k in self.entries:
-                if os.path.splitext(k.upper())[0]==key.upper():
-                    found+=1
-                    fkey = k
-            if found==1: return self.entries[fkey]
-            if found>1: raise KeyError(f'Multiple keys start with {fkey}')
+    # def __getitem__(self, key):
+    #     if isinstance(key, str):
+    #         # we don't care about case, gently ignoring Linux case-sensitivity
+    #         for k in self.entries: 
+    #             if k.upper()==key.upper():
+    #                 return self.entries[k]
+    #         # if this didn't work, we see if we find a unique 
+    #         found = 0
+    #         for k in self.entries:
+    #             if os.path.splitext(k.upper())[0]==key.upper():
+    #                 found+=1
+    #                 fkey = k
+    #         if found==1: return self.entries[fkey]
+    #         if found>1: raise IndexError(f'Multiple keys start with {fkey}')
                 
-        elif isinstance(key, int):
-            return self._entries[key]
-        raise KeyError(f'{key} not found')
-        
+    #     elif isinstance(key, int):
+    #         return self._entries[key]
+    #     raise KeyError(f'{key} not found')
+       
+      
     
     def __str__(self):
         duration = self.__dict__.get('duration', 0)

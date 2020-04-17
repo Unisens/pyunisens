@@ -176,7 +176,7 @@ class Entry():
                 if no_ext==id_or_name.upper():
                     found+=[(i, id)]
         if len(found)==1: return found[0]     
-        if len(found)>1: ValueError(f'More than one match for {id_or_name}: {found}')
+        if len(found)>1: raise IndexError(f'More than one match for {id_or_name}: {found}')
         raise KeyError(f'{id_or_name} not found')
         
     

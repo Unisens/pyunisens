@@ -194,9 +194,6 @@ class Testing(unittest.TestCase):
  
         
     def test_load_examples(self):
-        if False:
-            __file__ = 'C:/Users/Simon/Desktop/pyUnisens/test/unisens_test.py'
-        # example1 = os.path.join(os.path.dirname(__file__), 'Example_001')
         example1 = 'Example_001'
         
         u = Unisens(example1, readonly=True)
@@ -525,7 +522,7 @@ class Testing(unittest.TestCase):
         times2 = event2.get_data()
         np.testing.assert_allclose(times, times2)
         
-    def test_access_no_ext(self):
+    def test_access_no_ext_item(self):
         u = Unisens(tempfile.mkdtemp(prefix='unisens'))
         entry1 = SignalEntry('single.csv', parent=u)
         entry2 = SignalEntry('double.csv', parent=u)
@@ -535,13 +532,29 @@ class Testing(unittest.TestCase):
         self.assertIs (u['single'], entry1)
         self.assertIs (u['double.csv'], entry2)
         self.assertIs (u['double.bin'], entry3)
-        with self.assertRaises(KeyError):
+        with self.assertRaises(IndexError):
             u['double']
             
         self.assertIn('single.csv', u)
         self.assertIn('single', u)
         self.assertIn('double.csv', u)  
         self.assertNotIn('double', u)  
+   
+    
+    def test_access_no_ext_attrib(self):
+        u = Unisens(tempfile.mkdtemp(prefix='unisens'))
+        entry1 = SignalEntry('single.csv', parent=u)
+        entry2 = SignalEntry('double.csv', parent=u)
+        entry3 = SignalEntry('double.bin', parent=u)
+        
+        self.assertIs (u.single, entry1)
+        self.assertIs (u.single_csv, entry1)
+        self.assertIs (u.double_csv, entry2)
+        self.assertIs (u.double_bin, entry3)
+        with self.assertRaises(IndexError):
+            u.double
+            
+    
    
     def test_subentries(self):
         """this is not officially supported, but useful"""
@@ -652,10 +665,10 @@ class Testing(unittest.TestCase):
         self.assertEqual(c._get_index('fEAT1.bin'), (1, 'FEAT1_bin'))
         self.assertEqual(c._get_index('fEAT1_bin'), (1, 'FEAT1_bin'))
         
-        with self.assertRaises(KeyError):
+        with self.assertRaises(IndexError):
             c._get_index('feat1')
           
-        with self.assertRaises(KeyError):
+        with self.assertRaises(IndexError):
             c._get_index('FEAT1') 
             
         with self.assertRaises(KeyError):
