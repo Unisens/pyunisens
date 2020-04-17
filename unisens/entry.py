@@ -84,12 +84,14 @@ class Entry():
 
 
     def __getattr__(self, key):
+        if key == "__setstate__":
+            raise AttributeError(key)
         try:
             i, key = self._get_index(key)
             return self.__dict__[key]
         except KeyError:  
             return self.__getattribute__(key)
-        raise KeyError(f'{key} not found')
+        raise AttributeError(f'{key} not found')
 
 
     def __getitem__(self, key):
@@ -343,8 +345,10 @@ class Entry():
             An xml.etree.Element instance to be written to xml
 
         """
-        
-        element = Element(self._name, attrib=self.attrib.copy())
+        attrib = {}
+        for key, value in self.attrib.items():
+            attrib[key] = str(value)
+        element = Element(self._name, attrib=attrib.copy())
         element.tail = '\n'
         for subelement in self._entries:
             element.append(subelement.to_element())
@@ -734,11 +738,14 @@ class CustomEntry(FileEntry):
         """
 
         if dtype=='auto':
+            
             ext = os.path.splitext(self._filename)[-1].lower()
             txt_exts = ['.txt', '.csv', '.ini']
             img_exts = ['.jpeg', '.jpg', '.bmp', '.png', '.tif', '.gif']
             
-            if ext in img_exts:
+            if hasattr(self, 'dataType'): 
+                dtype = self.dataType
+            elif ext in img_exts:
                 dtype='image'
             elif ext in txt_exts:
                 dtype='text'
@@ -754,6 +761,8 @@ class CustomEntry(FileEntry):
         if dtype=='binary':
             with open(self._filename, 'rb') as f:
                 data = f.read()
+        elif dtype=='csv':
+            data = read_csv(self._filename)
         elif dtype=='text':
             with open(self._filename, 'r') as f:
                 data = f.read()
@@ -777,6 +786,7 @@ class CustomEntry(FileEntry):
         else:
             raise ValueError('unknown dtype {}'.format(dtype))
             
+        self.dataType = dtype
         return data
     
     
@@ -793,7 +803,7 @@ class CustomEntry(FileEntry):
         # infer datatype automatically
         if dtype=='auto':
             ext = os.path.splitext(self._filename)[-1].lower()
-            txt_exts = ['.txt', '.csv', '.ini']
+            txt_exts = ['.txt', '.ini', '.csv']
             img_exts = ['.jpeg', '.jpg', '.bmp', '.png', '.tif', '.gif']
             
             if ext in img_exts:
@@ -808,7 +818,7 @@ class CustomEntry(FileEntry):
                 dtype='numpy'
             else:
                 dtype='binary'
-          
+        
         # file saving from here on
         if dtype=='binary':
             with open(self._filename, 'wb') as f:
@@ -842,6 +852,10 @@ class CustomEntry(FileEntry):
             
         for key in kwargs:
             self.set_attrib(key, kwargs[key])
+            
+        # save dtype within the entry
+        self.dataType = dtype
+        
         self._autosave()
         return self
     

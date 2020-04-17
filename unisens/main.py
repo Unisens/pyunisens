@@ -26,6 +26,7 @@ todo: parent in folder/parent
 todo: access with shortcut to getitem
 todo: removentry with shortcut / upper / lower
 todo: coherent attribute setting in __init__ and set_data()
+todo: getitem same for entry and main
 
 @author: skjerns
 """
@@ -37,7 +38,8 @@ from xml.etree.ElementTree import Element
 from .entry import Entry, FileEntry, ValuesEntry, SignalEntry, MiscEntry
 from .entry import EventEntry, CustomEntry, CustomAttributes
 from .utils import AttrDict, strip, validkey, lowercase, make_key, indent
-  
+from .utils import str2num
+
 
 
 
@@ -57,7 +59,8 @@ class Unisens(Entry):
     """
     def __init__(self, folder, makenew=False, autosave=False, readonly=False,
                  comment:str='', duration:int=0, measurementId:str='NaN', 
-                 timestampStart='', filename='unisens.xml'):
+                 timestampStart='', filename='unisens.xml',
+                 convert_nums=False):
         """
         Initializes a Unisens object.
         If a unisens.xml file is already present in the folder, it will load
@@ -70,6 +73,7 @@ class Unisens(Entry):
                         If no unisens.xml is present and new=False
         :param readonly: Select if any files should be written or not.
         :param attrib: The attribute 
+        :param convert_nums:try to convert numbers from attribs automatically
         """
         assert autosave!=readonly or not autosave and not readonly, \
             'either read-only or autosave can be enabled'
@@ -83,6 +87,7 @@ class Unisens(Entry):
         self._entries = list()
         self._name = 'unisens'
         self._readonly = readonly
+        self._convert_nums = convert_nums
         
         if os.path.isfile(self._file) and not makenew:
             logging.info('loading unisens.xml from {}'.format(\
@@ -140,6 +145,7 @@ class Unisens(Entry):
         elif isinstance(key, int):
             return self._entries[key]
         raise KeyError(f'{key} not found')
+        
     
     def __str__(self):
         duration = self.__dict__.get('duration', 0)
@@ -266,12 +272,19 @@ class Unisens(Entry):
         
         # copy all attributes from root to this Unisens object
         self.attrib = root.attrib
+        
+        # convert strings to numbers if that is requested
+        if self._convert_nums:
+            for key, value in self.attrib.items():
+                self.attrib[key] = str2num(value)
+        
         # now add all elements that are contained in this XML object
         for element in root:
             entry = self.unpack_element(element)
             self.add_entry(entry)
             id = entry.attrib.get('id', entry._name)
             self.entries[id] = entry
+
         self.__dict__.update(self.attrib)
         keys = [make_key(key) for key in self.entries]
         entries = zip(keys, self.entries.values())

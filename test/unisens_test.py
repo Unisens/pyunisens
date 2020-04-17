@@ -195,10 +195,11 @@ class Testing(unittest.TestCase):
         
     def test_load_examples(self):
         if False:
-            __file__ == 'C:/Users/Simon/Desktop/pyUnisens/unisens/test/unisens_test.py'
-        example1 = os.path.join(os.path.dirname(__file__), 'Example_001')
+            __file__ = 'C:/Users/Simon/Desktop/pyUnisens/test/unisens_test.py'
+        # example1 = os.path.join(os.path.dirname(__file__), 'Example_001')
+        example1 = 'Example_001'
         
-        u = Unisens(example1)
+        u = Unisens(example1, readonly=True)
         self.assertTrue(hasattr(u, 'entries'))
         self.assertTrue(hasattr(u, 'attrib'))
         for attr in ['version', 'measurementId', 'timestampStart']:
@@ -330,7 +331,7 @@ class Testing(unittest.TestCase):
 
     def test_load_data(self):
         example1 = os.path.join(os.path.dirname(__file__), 'Example_001')
-        u = Unisens(example1)
+        u = Unisens(example1, readonly=True)
         signal = u['imp200.bin']
         data = signal.get_data()       
         self.assertEqual(len(data),2)
@@ -375,7 +376,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(len(data), 724116)
         data = custom.get_data(dtype='image')       
         data = np.asarray(data)
-        self.assertEqual(data.sum(), 706817789)
+        self.assertEqual(data.sum(), 706815368)
         
         self.assertEqual('Unisens: Example_001(0:00:00, 9 entries)', str(u))
 
