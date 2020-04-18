@@ -374,7 +374,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(len(data), 724116)
         data = custom.get_data(dtype='image')       
         data = np.asarray(data)
-        self.assertEqual(data.sum(), 706815368)
+        self.assertEqual(data.shape, (1463, 1388, 3))
         
         self.assertEqual('Unisens: Example_001(0:00:00, 9 entries)', str(u))
 
