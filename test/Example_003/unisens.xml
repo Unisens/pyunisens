@@ -1,48 +1,46 @@
-<?xml version='1.0' encoding='utf-8'?>
-<unisens xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" comment="Example data set, derived from Holtervergleich_0001." measurementId="smpleData" timestampStart="2009-10-01T12:23:11" version="2.0" xsi:schemaLocation="http://www.unisens.org/unisens2.0 http://www.unisens.org/unisens2.0/unisens.xsd">
-   <customAttributes>
-      <customAttribute key="evaluated" value="yes" />
-      <customAttribute key="originalDataSet" value="Holtervergleich_0001" />
-   </customAttributes>
-   <context />
-   <signalEntry adcResolution="16" adcZero="0" baseline="0" comment="FhG-Elektroden" contentClass="ECG" dataType="int16" id="ecg_m500_250.bin" lsbValue="1" sampleRate="250" source="FhG-Elektroden, ADS8345" unit="uV">
-      <binFileFormat endianess="LITTLE" />
-      <channel name="CH1" />
-      <channel name="CH2" />
-   </signalEntry>
-   <signalEntry adcResolution="16" adcZero="0" baseline="0" comment="Holter-EKG mit Ambu Bluesensor Klebeelektroden, Downsampling" contentClass="ECG" dataType="int16" id="ecg_padsy_250.bin" lsbValue="3.417" sampleRate="250" source="TELESMART H/P" unit="uV">
-      <customAttributes>
-         <customAttribute key="numberOfVes" value="22" />
-         <customAttribute key="schnipp" value="schnapp" />
-      </customAttributes>
-      <binFileFormat endianess="LITTLE" />
-      <channel name="A" />
-      <channel name="B" />
-   </signalEntry>
-   <signalEntry adcResolution="12" adcZero="0" baseline="2048" comment="ACC sensor connection board (textile)" contentClass="ACC" dataType="int16" id="acc_textile_50.bin" lsbValue="0.00294" sampleRate="50" source="ST Microelectronics MEMS Inertial Sensor" sourceId="LIS3LV02DQ" unit="g">
-      <binFileFormat comment="binary, 3 channels" endianess="LITTLE" />
-      <channel name="x" />
-      <channel name="y" />
-      <channel name="z" />
-   </signalEntry>
-   <eventEntry comment="Reference trigger list" contentClass="TRIGGER" id="trigger_reference.csv" sampleRate="0.1" source="PADSY / M. Kirst" typeLength="1">
-      <csvFileFormat separator=";" />
-   </eventEntry>
-   <customEntry contentClass="IMAGE" id="P1010061.JPG">
-      <customAttributes>
-         <customAttribute key="mime" value="img/jpeg" />
-      </customAttributes>
-      <customFileFormat comment="picture from digital camera" fileFormatName="jpg" />
-   </customEntry>
-   <valuesEntry comment="Blutdruck" contentClass="BLOODPRESSURE" dataType="int16" id="bloodpressure.csv" lsbValue="1" sampleRate="1" unit="mmHg">
-      <csvFileFormat comment="csv, 2 channel" separator="," />
-      <channel name="systolisch" />
-      <channel name="diastolisch" />
-   </valuesEntry>
-   <group comment="ECG and trigger list" id="default_ecg">
-      <groupEntry ref="ecg_m500_250.bin" />
-      <groupEntry ref="trigger_reference.csv" />
-   </group>
-   <group />
-   <binFileFormat />
+﻿<?xml version="1.0" encoding="utf-8"?>
+<unisens measurementId="smpleData" timestampStart="2009-10-01T12:23:11" version="2.0" comment="Example data set, derived from Holtervergleich_0001." xmlns="http://www.unisens.org/unisens2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.unisens.org/unisens2.0 http://www.unisens.org/unisens2.0/unisens.xsd">
+  <customAttributes>
+    <customAttribute key="evaluated" value="yes" />
+    <customAttribute key="originalDataSet" value="Holtervergleich_0001" />
+  </customAttributes>
+  <context schemaUrl="patient.xsd" />
+  <signalEntry adcResolution="16" baseline="0" adcZero="0" comment="FhG-Elektroden" contentClass="ECG" dataType="int16" id="ecg_m500_250.bin" lsbValue="1" sampleRate="250" source="FhG-Elektroden, ADS8345" unit="uV">
+    <binFileFormat endianess="LITTLE" />
+    <channel name="CH1" />
+    <channel name="CH2" />
+  </signalEntry>
+  <signalEntry adcResolution="16" baseline="0" adcZero="0" comment="Holter-EKG mit Ambu Bluesensor Klebeelektroden, Downsampling" contentClass="ECG" dataType="int16" id="ecg_padsy_250.bin" lsbValue="3.417" sampleRate="250" source="TELESMART H/P" unit="uV">
+    <customAttributes>
+      <customAttribute key="numberOfVes" value="22" />
+      <customAttribute key="schnipp" value="schnapp" />
+    </customAttributes>
+    <binFileFormat endianess="LITTLE" />
+    <channel name="A" />
+    <channel name="B" />
+  </signalEntry>
+  <signalEntry adcResolution="12" baseline="2048" adcZero="0" comment="ACC sensor connection board (textile)" contentClass="ACC" dataType="int16" id="acc_textile_50.bin" lsbValue="0.00294" sampleRate="50" source="ST Microelectronics MEMS Inertial Sensor" sourceId="LIS3LV02DQ" unit="g">
+    <binFileFormat comment="binary, 3 channels" endianess="LITTLE" />
+    <channel name="x" />
+    <channel name="y" />
+    <channel name="z" />
+  </signalEntry>
+  <eventEntry comment="Reference trigger list" contentClass="TRIGGER" id="trigger_reference.csv" sampleRate="1000" source="PADSY / M. Kirst" typeLength="1">
+    <csvFileFormat separator=";" />
+  </eventEntry>
+  <customEntry id="P1010061.JPG" contentClass="IMAGE">
+    <customAttributes>
+      <customAttribute key="mime" value="img/jpeg" />
+    </customAttributes>
+    <customFileFormat fileFormatName="jpg" comment="picture from digital camera" />
+  </customEntry>
+  <valuesEntry contentClass="BLOODPRESSURE" id="bloodpressure.csv" comment="Blutdruck" sampleRate="1" lsbValue="1" unit="mmHg" dataType="int16">
+    <csvFileFormat comment="csv, 2 channel" separator="," />
+    <channel name="systolisch" />
+    <channel name="diastolisch" />
+  </valuesEntry>
+  <group id="default_ecg" comment="ECG and trigger list">
+    <groupEntry ref="ecg_m500_250.bin" />
+    <groupEntry ref="trigger_reference.csv" />
+  </group>
 </unisens>
