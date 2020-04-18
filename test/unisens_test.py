@@ -312,8 +312,10 @@ class Testing(unittest.TestCase):
         example2 = os.path.join(os.path.dirname(__file__), 'Example_002')
         example3 = os.path.join(os.path.dirname(__file__), 'Example_003')
         for example in [example1, example2, example3]:
-            u1 = Unisens(example)
+            u = Unisens(example, readonly=True)
             entry = MiscEntry('group')
+            u1 = u.copy()
+            u1._readonly=False
             u1.add_entry(entry)
             u1.save(filename='test.xml')
             u2 = Unisens(folder=u1._folder, filename='test.xml')
