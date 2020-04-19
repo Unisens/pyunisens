@@ -194,7 +194,7 @@ class Testing(unittest.TestCase):
  
         
     def test_load_examples(self):
-        example1 = 'Example_001'
+        example1 = os.path.join(os.path.dirname(__file__), 'Example_001')
         
         u = Unisens(example1, readonly=True)
         self.assertEqual(len(u), 9)
