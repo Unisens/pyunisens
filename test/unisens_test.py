@@ -13,6 +13,7 @@ import unittest
 import shutil
 import tempfile
 import numpy as np
+import pickle
 
 
 
@@ -196,14 +197,15 @@ class Testing(unittest.TestCase):
         example1 = 'Example_001'
         
         u = Unisens(example1, readonly=True)
+        self.assertEqual(len(u), 9)
         self.assertTrue(hasattr(u, 'entries'))
         self.assertTrue(hasattr(u, 'attrib'))
         for attr in ['version', 'measurementId', 'timestampStart']:
             self.assertIn(attr, u.attrib)
         self.assertEqual(u.attrib['version'], '2.0')
-        self.assertEqual(u.attrib['measurementId'], 'Example_001')
         self.assertEqual(u.attrib['timestampStart'], '2008-07-08T13:32:51')
-        self.assertEqual(len(u), 9)
+        self.assertEqual(u.attrib['measurementId'], 'Example_001')
+
         
         for name in ['customAttributes', 'imp200.bin', 'ecg200.bin', 
                       'valid_signal.csv', 'trig_ref.csv', 'bp.csv',
@@ -722,6 +724,21 @@ class Testing(unittest.TestCase):
         self.assertEqual(a,'Unisens: thisid(2:02:05, 0 entries)')
         self.assertEqual(b,f'Unisens(comment=, duration=2:02:05,  id=thisid,timestampStart={u.timestampStart})')
         
+    def test_serialize(self)       :
+        folder = tempfile.mkdtemp(prefix='seria')
+        u = Unisens(folder, makenew=True, autosave=True)
+        CustomEntry('test.bin', parent=u).set_data(b'test')
+        CustomEntry('test2.bin', parent=u).set_data(b'test2')
+        u.save()
+        u.asd='asdf'
+        
+        with open(folder + '/asd.pkl', 'wb') as f:   
+            pickle.dump(u, f)
+            
+        with open(folder + '/asd.pkl', 'rb') as f:   
+            u1 = pickle.load(f)         
+            
+        elements_equal(u.to_element(), u1.to_element())
         
 if __name__ == '__main__':
     
