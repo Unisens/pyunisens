@@ -12,15 +12,11 @@ format was the need for a universal, generic and sustainable format for storing
 and archiving sensor data from various recording systems. Other main requirements 
 were a human readable header and the use of future-proof standards like XML.
 
-
-todo: summary
 todo: plotting
 todo: example file
-todo: impolement del__
 todo: add group
 todo: channel to valuesentry
 todo: parent in folder/parent
-todo: removentry with shortcut / upper / lower
 todo: coherent attribute setting in __init__ and set_data()
 
 @author: skjerns
@@ -268,5 +264,6 @@ class Unisens(Entry):
         entries = zip(keys, self.entries.values())
         self.__dict__.update(entries)
         return self
+    
 
 

@@ -370,7 +370,14 @@ class Entry():
         element = self.to_element()
         return ET.tostring(element).decode()
     
-    
+    def print_summary(self, indent=0):
+        """
+        Prints a summary of this object containing all entries
+        """
+        print('\t'*indent, self)
+        for entry in self._entries:
+            entry.print_summary(indent+1)
+
 
 class FileEntry(Entry):
     """
@@ -401,6 +408,10 @@ class FileEntry(Entry):
         folder = os.path.dirname(self._filename)
         os.makedirs(folder, exist_ok=True)
         if isinstance(parent, Entry): parent.add_entry(self)
+        
+        
+
+
 
         
 class SignalEntry(FileEntry):
