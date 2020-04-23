@@ -6,9 +6,9 @@ Implementation of the Unisens data storage format
 ## Installation
 Stable version can be installed via `pip install pyunisens`
 
-or most recent version via `pip install git+https://github.com/skjerns/pyunisens`
+or most recent version via `pip install git+https://github.com/Unisens/pyunisens`
 
-`pyunisens` is running only on Python 3.6+
+`pyunisens` is running on Python 3.6+
 
 ## Quickstart
 
