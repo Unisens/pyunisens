@@ -153,28 +153,36 @@ class Entry():
         [index in ._entries, key-name in __dict__].
 
         """
-
-        id_or_name = make_key(id_or_name)
         
         # we don't care about case, gently ignoring Linux file case-sensitivity
         # first check for exact match
         for i, entry in enumerate(self._entries):
             if hasattr(entry, 'id'):
-                id = make_key(entry.id)
-                if id.upper()==id_or_name.upper(): return i, id
+                id = entry.id
+                if id_or_name.upper()==id:  
+                    return i, make_key(id) # check for exact match
+                if make_key(id).upper()==make_key(id_or_name).upper(): 
+                    return i, make_key(id) # check for match in key notation
             else:
                 name = entry._name
-                if name.upper()==id_or_name.upper(): return i, name
-                
-        # then check for no file-ext match, eg text matches to text.txt
+                if name.upper()==id_or_name.upper(): # same as above
+                    return i, name
+                if make_key(name).upper()==make_key(id_or_name).upper(): 
+                    return i, name
+
+        # then check for no file-ext match, eg 'text' matches to 'text.txt'
         found = []
         for i, entry in enumerate(self._entries):
             if hasattr(entry, 'id'):
-                id = make_key(entry.id)
-                no_ext = id.upper().split('_')[-2:-1][0]
-                if no_ext==[]:continue
+                id = entry.id.replace('\\', '/') # normalize to linux-slash
+                no_ext = os.path.splitext(id)[0].upper()
                 if no_ext==id_or_name.upper():
-                    found+=[(i, id)]
+                    found+=[(i, make_key(entry.id))]
+                elif os.path.basename(no_ext)==id_or_name.upper():
+                    found+=[(i, make_key(entry.id))]
+                elif os.path.basename(id).upper()==id_or_name.upper():
+                    found+=[(i, make_key(entry.id))]
+                    
         if len(found)==1: return found[0]     
         if len(found)>1: raise IndexError(f'More than one match for {id_or_name}: {found}')
         raise KeyError(f'{id_or_name} not found')

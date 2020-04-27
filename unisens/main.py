@@ -18,7 +18,6 @@ todo: add group
 todo: channel to valuesentry
 todo: parent in folder/parent
 todo: coherent attribute setting in __init__ and set_data()
-
 @author: skjerns
 """
 import os

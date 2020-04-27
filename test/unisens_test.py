@@ -676,7 +676,30 @@ class Testing(unittest.TestCase):
             
         with self.assertRaises(KeyError):
             c._get_index('feat0')
+
             
+    def test_indexfinding_subfolders(self):
+        """try whether the index finding method is working correctly"""
+        folder = tempfile.mkdtemp(prefix='unisens_')
+        
+        c = CustomEntry(id='test.bin', parent=folder)
+        FileEntry('feat.txt', parent=c)
+        FileEntry('feat/feat.txt', parent=c)
+        FileEntry('feat/feat.bin', parent=c)
+        FileEntry('feat/one.txt', parent=c)
+        FileEntry('feat/one_two.txt', parent=c)
+        
+        self.assertEqual(c._get_index('feat.txt'), (0, 'feat_txt'))
+        
+        self.assertEqual(c._get_index('one'), (3, 'feat_one_txt'))
+        self.assertEqual(c._get_index('one.txt'), (3, 'feat_one_txt'))
+        self.assertEqual(c._get_index('one_two'), (4, 'feat_one_two_txt'))
+        self.assertEqual(c._get_index('one_two.txt'), (4, 'feat_one_two_txt'))
+        
+        with self.assertRaises(IndexError):
+            self.assertEqual(c._get_index('feat'), (0, 'feat_txt'))
+        
+
         
     def test_nooverwrite(self):
         folder = tempfile.mkdtemp(prefix='unisens_copy')
