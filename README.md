@@ -1,14 +1,14 @@
-[![Build Status](https://travis-ci.com/skjerns/pyUnisens.svg?branch=master)](https://travis-ci.com/skjerns/pyUnisens)  [![Coverage Status](https://coveralls.io/repos/github/skjerns/pyUnisens/badge.svg?branch=master)](https://coveralls.io/github/skjerns/pyUnisens?branch=master)
+[![Build Status](https://travis-ci.com/skjerns/pyunisens.svg?branch=master)](https://travis-ci.com/skjerns/pyunisens)  [![Coverage Status](https://coveralls.io/repos/github/skjerns/pyunisens/badge.svg?branch=master)](https://coveralls.io/github/skjerns/pyunisens?branch=master)
 
-# pyUnisens
+# pyunisens
 Implementation of the Unisens data storage format
 
 ## Installation
 Stable version can be installed via `pip install pyunisens`
 
-or most recent version via `pip install git+https://github.com/skjerns/pyUnisens`
+or most recent version via `pip install git+https://github.com/Unisens/pyunisens`
 
-`pyUnisens` is running only on Python 3.6+
+`pyunisens` is running on Python 3.6+
 
 ## Quickstart
 
