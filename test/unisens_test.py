@@ -54,11 +54,11 @@ class Testing(unittest.TestCase):
             
             self.assertEqual(u.attrib['key1'], 'value1')
             self.assertEqual(u.attrib['key2'], 'value2')
-            self.assertEqual(u.attrib['key3'], '3')
+            self.assertEqual(u.attrib['key3'], 3)
             
             self.assertEqual(u.key1, 'value1')
             self.assertEqual(u.key2, 'value2')
-            self.assertEqual(u.key3, '3')
+            self.assertEqual(u.key3, 3)
             
             u.save()
     
@@ -327,6 +327,7 @@ class Testing(unittest.TestCase):
             u2 = Unisens(folder=u1._folder,filename='test.xml')
             with self.assertRaises(AssertionError):
                 elements_equal(u1.to_element(), u2.to_element())
+
 
 
     def test_load_data(self):
@@ -762,6 +763,33 @@ class Testing(unittest.TestCase):
             u1 = pickle.load(f)         
             
         elements_equal(u.to_element(), u1.to_element())
+        
+        
+        
+    def test_convert_nums(self):
+        folder = tempfile.mkdtemp(prefix='convert_nums')
+        u = Unisens(folder, makenew=True, autosave=True) 
+        u.int = 1
+        u.float = 1.5
+        u.bool = True
+        
+        self.assertEqual(u.int, 1)
+        self.assertEqual(u.float, 1.5)
+        self.assertEqual(u.bool, True)
+        
+        u1 =  Unisens(folder, readonly=True, convert_nums=False)  
+        
+        self.assertEqual(u1.int, '1')
+        self.assertEqual(u1.float, '1.5')
+        self.assertEqual(u1.bool, 'True')
+        
+        
+        u1 =  Unisens(folder, readonly=True, convert_nums=True)  
+        
+        self.assertEqual(u1.int, 1)
+        self.assertEqual(u1.float, 1.5)
+        self.assertEqual(u1.bool, True)
+        
         
 if __name__ == '__main__':
     

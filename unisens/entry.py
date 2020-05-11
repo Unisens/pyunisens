@@ -297,8 +297,6 @@ class Entry():
         value : (str, int, float)
             value to be added. will be converted to string.
         """
-        name = str(name)
-        value = str(value)
         name = validkey(name)
         self.attrib[name] = value
         self.__dict__.update(self.attrib)

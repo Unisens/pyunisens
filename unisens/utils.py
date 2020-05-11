@@ -52,10 +52,16 @@ def num2str(element, decimal_sep='.'):
     
 def str2num(string, decimal_sep='.'):
     """
-    A helper function that converts numbers to strings if possible
-    and replaces the float decimal separator with the given value
+    A helper function that converts strings to numbers if possible
+    and replaces the float decimal separator with the given value.
+    eg. '1' => 1
+        '1.2' => 1.2
+        '1,2' => 1.2
+        'True' => True
     """
     if string.isdigit(): return int(string)
+    if string=='True': return True
+    if string=='False': return False
     try: 
         string_x = string.replace(decimal_sep, '.')
         string_x = string_x.replace('_', '#') # necessary because of PEP-515
