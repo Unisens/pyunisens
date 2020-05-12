@@ -30,9 +30,6 @@ from .entry import EventEntry, CustomEntry, CustomAttributes
 from .utils import AttrDict, strip, validkey, lowercase, make_key, indent
 from .utils import str2num
 
-
-
-
     
 class Unisens(Entry):
     """
@@ -167,6 +164,10 @@ class Unisens(Entry):
         """
         # iteratively upack_element the subelements of this element
         attrib = element.attrib.copy()
+        if self._convert_nums:
+            for key, value in attrib.items():
+                attrib[key] = str2num(value)
+        
         entryType = strip(element.tag)
         if entryType == 'customAttributes':
             entry = CustomAttributes(attrib=attrib, parent=self._folder)
@@ -189,7 +190,8 @@ class Unisens(Entry):
             if not 'Entry' in element.tag:
                 logging.warning('Unknown entry type: {}'.format(entryType))
             name = element.tag
-            entry = MiscEntry(name=name, attrib=attrib, parent=self._folder)
+            entry = MiscEntry(name=name, attrib=attrib, parent=self._folder)            
+                
         for subelement in element:
             subentry = self.unpack_element(subelement)
             entry.add_entry(subentry)

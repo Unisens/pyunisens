@@ -772,24 +772,35 @@ class Testing(unittest.TestCase):
         u.int = 1
         u.float = 1.5
         u.bool = True
+        CustomEntry('entry.csv', parent=u).set_data('test')
+        u.entry.int = 1
+        u.entry.float = 1.5
+        u.entry.bool = True
         
         self.assertEqual(u.int, 1)
         self.assertEqual(u.float, 1.5)
         self.assertEqual(u.bool, True)
+        self.assertEqual(u.entry.int, 1)
+        self.assertEqual(u.entry.float, 1.5)
+        self.assertEqual(u.entry.bool, True)
         
         u1 =  Unisens(folder, readonly=True, convert_nums=False)  
         
         self.assertEqual(u1.int, '1')
         self.assertEqual(u1.float, '1.5')
         self.assertEqual(u1.bool, 'True')
-        
+        self.assertEqual(u1.entry.int, '1')
+        self.assertEqual(u1.entry.float, '1.5')
+        self.assertEqual(u1.entry.bool,'True')
         
         u1 =  Unisens(folder, readonly=True, convert_nums=True)  
         
         self.assertEqual(u1.int, 1)
         self.assertEqual(u1.float, 1.5)
         self.assertEqual(u1.bool, True)
-        
+        self.assertEqual(u1.entry.int, 1)
+        self.assertEqual(u1.entry.float, 1.5)
+        self.assertEqual(u1.entry.bool, True)
         
 if __name__ == '__main__':
     
