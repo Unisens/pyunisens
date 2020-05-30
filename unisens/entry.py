@@ -46,6 +46,8 @@ class Entry():
         DESCRIPTION.
     """
     
+
+        
     def __len__(self):
         return len(self._entries)
     
@@ -55,6 +57,7 @@ class Entry():
     def __repr__(self):
         return "<{}({})>".format(self._name, self.attrib)
  
+    # @profile
     def __init__(self, attrib=None, parent='.', **kwargs):
 
         
@@ -69,23 +72,33 @@ class Entry():
         for key in kwargs:
             self.key = kwargs[key]
         self._autosave()
-    
+        
+    def __contains__(self, item):
+        if item in self.__dict__: return True
+        if make_key(item) in self.__dict__: return True
+        try:
+            self.__getitem__(item)
+            return True
+        except:
+            return False   
     
     def __setattr__(self, name:str, value:str):
         """
         Allows settings of attributes via .name = value.
         """
-        methods = dir(type(self))
         super.__setattr__(self, name, value)
+        if name.startswith('_'): return
+        methods = dir(type(self))
         # do not overwrite if it's a builtin method
-        if name not in methods and not name.startswith('_') and \
+        if name not in methods and   \
             isinstance(value, (int, float, bool, bytes, str)):
             self.set_attrib(name, value)
-
 
     def __getattr__(self, key):
         if key == "__setstate__":
             raise AttributeError(key)
+        try: return self.__dict__[key]
+        except: pass
         try:
             i, key = self._get_index(key)
             return self.__dict__[key]
@@ -101,7 +114,6 @@ class Entry():
         elif isinstance(key, int):
             return self._entries[key]
         raise KeyError(f'{key} not found')
-
 
     def _autosave(self):
         """
@@ -128,7 +140,6 @@ class Entry():
                 raise IOError(f'Read only, can\'t write to {self._folder}.')
         return True
     
-
     def _get_index(self, id_or_name, raises=True):
         """
         Receive the index and key-name of an object.
@@ -151,23 +162,27 @@ class Entry():
         Returns
         -------
         [index in ._entries, key-name in __dict__].
-
         """
+        
+        id_or_name = id_or_name.upper()
+        id_or_name_key = make_key(id_or_name)
         
         # we don't care about case, gently ignoring Linux file case-sensitivity
         # first check for exact match
         for i, entry in enumerate(self._entries):
             if hasattr(entry, 'id'):
                 id = entry.id
-                if id_or_name.upper()==id:  
-                    return i, make_key(id) # check for exact match
-                if make_key(id).upper()==make_key(id_or_name).upper(): 
-                    return i, make_key(id) # check for match in key notation
+                id_key = make_key(id)
+                if id_or_name.upper()==id:   
+                    return i, id_key# check for exact match
+                if id_key.upper()==id_or_name_key: 
+                    return i, id_key # check for match in key notation
             else:
                 name = entry._name
+                name_key = make_key(name)
                 if name.upper()==id_or_name.upper(): # same as above
                     return i, name
-                if make_key(name).upper()==make_key(id_or_name).upper(): 
+                if name_key.upper()==id_or_name_key: 
                     return i, name
 
         # then check for no file-ext match, eg 'text' matches to 'text.txt'
@@ -175,13 +190,14 @@ class Entry():
         for i, entry in enumerate(self._entries):
             if hasattr(entry, 'id'):
                 id = entry.id.replace('\\', '/') # normalize to linux-slash
+                id_key = make_key(entry.id)
                 no_ext = os.path.splitext(id)[0].upper()
-                if no_ext==id_or_name.upper():
-                    found+=[(i, make_key(entry.id))]
-                elif os.path.basename(no_ext)==id_or_name.upper():
-                    found+=[(i, make_key(entry.id))]
-                elif os.path.basename(id).upper()==id_or_name.upper():
-                    found+=[(i, make_key(entry.id))]
+                if no_ext==id_or_name:
+                    found+=[(i, id_key)]
+                elif os.path.basename(no_ext)==id_or_name:
+                    found+=[(i, id_key)]
+                elif os.path.basename(id).upper()==id_or_name:
+                    found+=[(i, id_key)]
                     
         if len(found)==1: return found[0]     
         if len(found)>1: raise IndexError(f'More than one match for {id_or_name}: {found}')
@@ -208,8 +224,8 @@ class Entry():
         else:
             copy = deepcopy(self)
         return copy
-    
-    
+
+    # @profile
     def add_entry(self, entry:'Entry', stack:bool=True):
         """
         Add an subentry to this entry
@@ -239,7 +255,7 @@ class Entry():
         if entry._name in reserved: 
             stack=False
         
-        name = entry.id if hasattr(entry, 'id') else entry._name
+        name = entry.attrib.get('id', entry.__dict__['_name'])
         
         if not stack:
             try: self.remove_entry(name)
@@ -259,10 +275,11 @@ class Entry():
                 self.__dict__[name].append(entry)
         else:
             self.__dict__[name] = entry
-        entry._parent = self
+        entry.__dict__['_parent'] = self
         self._autosave()
         return self
-
+    
+    # @profile
     def remove_entry(self, name):
         """
         Removes an subentry by name.

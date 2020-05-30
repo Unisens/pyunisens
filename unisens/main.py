@@ -29,6 +29,7 @@ from .entry import Entry, FileEntry, ValuesEntry, SignalEntry, MiscEntry
 from .entry import EventEntry, CustomEntry, CustomAttributes
 from .utils import AttrDict, strip, validkey, lowercase, make_key, indent
 from .utils import str2num
+import stimer
 
     
 class Unisens(Entry):
@@ -98,23 +99,8 @@ class Unisens(Entry):
             # self.set_attrib('xmlns:xsi', "http://www.w3.org/2001/XMLSchema-instance")
         self._autosave_enabled = autosave
         self._autosave()
-        
-    def __setattr__(self, name, value):
-        """
-        This will allow to set new attributes with .attrname = value
-        while warning the user if builtin methods are overwritten
-        """
-        return Entry.__setattr__(self, name, value)
+           
 
-
-
-   
-    def __contains__(self, item):
-        try:
-            self.__getitem__(item)
-            return True
-        except:
-            return False   
         
     
     def __str__(self):
@@ -135,10 +121,15 @@ class Unisens(Entry):
 
         s = f'Unisens(comment={comment}, duration={duration},  ' \
             f'id={measurementId},timestampStart={timestampStart})'
-            
-        return s
+        return s    
+
+    def _autosave(self):
+        if self.__dict__.get('_autosave_enabled', False):
+                self.save()
+
     
     
+    # @profile
     def add_entry(self, entry:Entry):
         """
         Add a subentry to this unisens object, e.g ValueEntry, SignalEntry
@@ -154,7 +145,7 @@ class Unisens(Entry):
         super().add_entry(entry, stack=False)
         return self
     
-    
+    # @profile
     def unpack_element(self, element:( Element, ET)) -> Entry:
         """
         Unpacks an xmltree element iteratively into an the
@@ -197,6 +188,7 @@ class Unisens(Entry):
             entry.add_entry(subentry)
         return entry
     
+    # @profile
     def save(self, folder:str=None, filename:str='unisens.xml') -> Entry:
         """
         Save this Unisens xml file to a given folder and filename.
@@ -222,13 +214,8 @@ class Unisens(Entry):
                  encoding='utf-8')
         return self
     
-    
-    def _autosave(self):
-        
-        if hasattr(self, '_autosave_enabled') and self._autosave_enabled:
-            self.save()
-            
-            
+
+    # @profile
     def read_unisens(self, folder:str, filename='unisens.xml') -> Entry:
         """
         Loads an XML Unisens file into this Unisens object.
@@ -243,28 +230,33 @@ class Unisens(Entry):
         if not os.path.exists(file):
             raise FileNotFoundError('{} does not exist'.format(folder))
             
-        root = ET.parse(file).getroot()
+        try:
+            root = ET.parse(file).getroot()
+        except Exception as e:
+            print('Error reading {}'.format(file))
+            raise e
         
         # copy all attributes from root to this Unisens object
         self.attrib = root.attrib
         
         # convert strings to numbers if that is requested
+        
         if self._convert_nums:
             for key, value in self.attrib.items():
                 self.attrib[key] = str2num(value)
         
         # now add all elements that are contained in this XML object
+        
         for element in root:
             entry = self.unpack_element(element)
             self.add_entry(entry)
             id = entry.attrib.get('id', entry._name)
             self.entries[id] = entry
-
+            
         self.__dict__.update(self.attrib)
         keys = [make_key(key) for key in self.entries]
         entries = zip(keys, self.entries.values())
         self.__dict__.update(entries)
+
         return self
     
-
-

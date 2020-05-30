@@ -211,16 +211,11 @@ def make_key(string:str):
     -------
     the string corrected for characters other than a-z, 0-9, _.
     """
-    allowed = [chr(i) for i in range(97,123)] +\
-              [chr(i) for i in range(65,91)]  +\
-              [str(i) for i in range(9)] + ['_']
+    if string.isidentifier(): return string
+    allowed = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012345678_'
     if string[0].isdigit():
-        s = 'x_'
-    else:
-        s = ''
-    for c in string:
-        s += c if c in allowed else '_'
-    return s
+        string = 'x_' + string
+    return ''.join([s if s in allowed else '_' for s in string])
     
 def validkey(key):
     """
