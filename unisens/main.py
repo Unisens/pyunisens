@@ -78,11 +78,11 @@ class Unisens(Entry):
         self._convert_nums = convert_nums
         
         if os.path.isfile(self._file) and not makenew:
-            logging.info('loading unisens.xml from {}'.format(\
+            logging.debug('loading unisens.xml from {}'.format(\
                          self._file))
             self.read_unisens(folder, filename=filename)
         else:
-            logging.info('New unisens.xml will be created at {}'.format(\
+            logging.debug('New unisens.xml will be created at {}'.format(\
                          self._file))
             if not timestampStart:
                 now = datetime.datetime.now()

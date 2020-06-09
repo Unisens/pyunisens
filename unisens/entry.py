@@ -52,7 +52,7 @@ class Entry():
         return len(self._entries)
     
     def __iter__(self):
-        return self._entries.__iter__()
+        return list(self._entries).__iter__()
     
     def __repr__(self):
         return "<{}({})>".format(self._name, self.attrib)
@@ -298,7 +298,7 @@ class Entry():
         del self.__dict__[key]
         # if this is an unisens object, also delete the referer there
         if hasattr(self, 'entries'):
-            for key, e in self.entries.items():
+            for key, e in list(self.entries.items()):
                 if e==entry: del self.entries[key]
         return self
 
@@ -557,7 +557,7 @@ class SignalEntry(FileEntry):
             # this means new channel names are indicated and will overwrite.
             assert len(ch_names)==len(data), f'len {ch_names}!={len(data)}'
             if hasattr(self, 'channel'):
-                logging.warn('Channels present will be overwritten')
+                logging.warning('Channels present will be overwritten')
                 self.remove_entry('channel')
             for name in ch_names:
                 channel = MiscEntry('channel', key='name', value=name)
@@ -603,7 +603,7 @@ class CsvFileEntry(FileEntry):
         assert decimalSeparator and separator, 'Must supply separators'
 
         if not self.id.endswith('csv'):
-            logging.warn(f'id "{id}" does not end in .csv')
+            logging.warning(f'id "{id}" does not end in .csv')
         
         csvFileFormat = MiscEntry('csvFileFormat', parent=self)
         csvFileFormat.set_attrib('decimalSeparator', decimalSeparator)
@@ -635,7 +635,7 @@ class CsvFileEntry(FileEntry):
         dec = self.csvFileFormat.decimalSeparator
         
         n_cols = len(data[0])
-        if n_cols<2: logging.warn('Should supply at least two columns: '\
+        if n_cols<2: logging.warning('Should supply at least two columns: '\
                                   'time and data')
         
         write_csv(self._filename, data, sep=sep, decimal_sep=dec)
@@ -725,7 +725,7 @@ class ValuesEntry(CsvFileEntry):
             # this means new channel names are indicated and will overwrite.
             assert len(ch_names)==n_cols, f'len {ch_names}!={len(data)}'
             if hasattr(self, 'channel'):
-                logging.warn('Channels present will be overwritten')
+                logging.warning('Channels present will be overwritten')
                 self.remove_entry('channel')
             for name in ch_names:
                 channel = MiscEntry('channel', key='name', value=name)
