@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.com/skjerns/pyunisens.svg?branch=master)](https://travis-ci.com/skjerns/pyunisens)  [![Coverage Status](https://coveralls.io/repos/github/skjerns/pyunisens/badge.svg?branch=master)](https://coveralls.io/github/skjerns/pyunisens?branch=master)
+[![Build Status](https://travis-ci.com/Unisens/pyunisens.svg?branch=master)](https://travis-ci.com/Unisens/pyunisens)  [![Coverage Status](https://coveralls.io/repos/github/Unisens/pyunisens/badge.svg?branch=master)](https://coveralls.io/github/Unisens/pyunisens?branch=master)
 
 # pyunisens
 Implementation of the Unisens data storage format
