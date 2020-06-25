@@ -59,9 +59,10 @@ class Unisens(Entry):
         :param folder: The folder where the unisens data is stored.
         :param makenew: Create a new unisens.xml, even if one is present.
                         If no unisens.xml is present and new=False
+        :param autosave: Update and save the XML on every change that is made
         :param readonly: Select if any files should be written or not.
         :param attrib: The attribute 
-        :param convert_nums:try to convert numbers from attribs automatically
+        :param convert_nums: try to convert numbers from attribs automatically
         """
         assert autosave!=readonly or not autosave and not readonly, \
             'either read-only or autosave can be enabled'

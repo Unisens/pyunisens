@@ -30,6 +30,13 @@ signal = u.signal_bin
 signal = u['signal.bin']
 signal = u.entries['signal.bin']
 signal = u[0]
+
+# shortcuts also work, if they are not ambiguous
+signal = u.signal
+signal = u['signal']
+
+print(type(signal))
+# signalEntry
 ```
 
 Data can be loaded (if datatypeis supported, ie a standard numpy dtype) via `data= signal.get_data()`
@@ -42,14 +49,17 @@ from unisens import SignalEntry
 
 data = np.random(2, 2560)
 s = SignalEntry(id='eeg.bin', parent=u)
+# parent=u makes sure the signal is added to this Unisens object
 # saving the data to eeg.bin
 s.set_data(data, sampleRate=256, contentClass='EEG')
-
-u.add_entry(s)
 
 u.save() # will update the unisens.xml
 ```
 
-more documentation will follow soon.
+## Documentation
+More documentation can be found at 
+[API-OVERVIEW.md](API-OVERVIEW.md) and in the function descriptors
 
-please report any bugs or improvements via github issues.
+
+## Bug reports / feedback
+Please report any bugs or improvements via a Github issue.
