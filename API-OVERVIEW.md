@@ -41,6 +41,9 @@ u.set_attrib('name', 'pi')
 
 # using the attrib-dictionary
 u.attrib['name'] = 'pi'
+
+# be aware, attributes are saved in XML as strings, so they might need to be
+# converted back to int/float when reloading the Unisens object.
 ```
 
 ##### Removing attributes
@@ -48,9 +51,6 @@ u.attrib['name'] = 'pi'
 ```Python
 # attributes can be removed with a function
 u.remove_attr('name')
-
-# be aware, attributes are saved in XML as strings, so they might need to be
-# converted back to int/float when reloading the Unisens object.
 ```
 
 ### Sub-Entries
@@ -100,7 +100,7 @@ for entry in u:
 u.remove_entry('signal1.bin')
 
 # abbreviations are allowed here as well
-u.remove_entry('signal1')
+u.remove_entry('signal2')
 ```
 
 ## Unisens
@@ -116,3 +116,12 @@ u = unisens.Unisens('c:/unisens', makenew=True, autosave=True, readonly=False)
 # readonly = True would prevent the XML from updating
 ```
 
+## SignalEntry
+
+## ValuesEntry
+
+## EventEntry
+
+## CustomEntry
+
+## CustomAttributes
