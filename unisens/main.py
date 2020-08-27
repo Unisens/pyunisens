@@ -29,7 +29,6 @@ from .entry import Entry, FileEntry, ValuesEntry, SignalEntry, MiscEntry
 from .entry import EventEntry, CustomEntry, CustomAttributes
 from .utils import AttrDict, strip, validkey, lowercase, make_key, indent
 from .utils import str2num
-import stimer
 
     
 class Unisens(Entry):

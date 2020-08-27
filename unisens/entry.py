@@ -633,9 +633,9 @@ class CsvFileEntry(FileEntry):
             f'data must be list of lists, is {type(data)}'
         sep = self.csvFileFormat.separator
         dec = self.csvFileFormat.decimalSeparator
-        
-        n_cols = len(data[0])
-        if n_cols<2: logging.warning('Should supply at least two columns: '\
+
+
+        if len(data)==0 or len(data[0])<2: logging.warning('Should supply at least two columns: '\
                                   'time and data')
         
         write_csv(self._filename, data, sep=sep, decimal_sep=dec)
