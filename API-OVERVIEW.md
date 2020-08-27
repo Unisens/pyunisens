@@ -118,9 +118,55 @@ u = unisens.Unisens('c:/unisens', makenew=True, autosave=True, readonly=False)
 
 ## SignalEntry
 
+SignalEntries can be used to store continuous numeric data with high frequency, e.g. ECG signals. They are saved in binary format. It is possible to save multiple channels. Things like sample frequency and other meta information can be saved in them as well. Data must be of size `[1, N]`.
+
+```Python
+from unisens import Unisens, SignalEntry
+
+u = Unisens('c:/unisens', makenew=True, autosave=True, readonly=False)
+sfreq = 256
+signal = np.random.rand(2, sfreq*300) # 5 minutes of data
+entry = SignalEntry(id='ECG.bin')
+u.add_entry(entry) # must be called before setting data
+entry.set_data(signal, sampleRate=sfreq, unit='mV', ch_names=['ECG I', 'ECG II'])
+
+################
+## alternatively
+
+from unisens import Unisens, SignalEntry
+
+u = Unisens('c:/unisens', makenew=True)
+sfreq = 256
+signal = np.random.rand(2, sfreq*300) # 5 minutes of data
+SignalEntry(id='ECG.bin', parent=u).set_data(signal, sampleRate=sfreq)
+u.save()
+```
+
 ## ValuesEntry
+`ValuesEntry` is used for low-frequency continuously sampled data, e.g. Temperature or RR intervals. It is basically equivalent to `SignalEntry` except that it saves data in CSV (text) format, and not binary. Data must be of size `[1, N]`.
+
+```Python
+from unisens import Unisens, ValuesEntry
+
+u = Unisens('c:/unisens', makenew=True, autosave=True)
+temperature = np.random.randint(10, 40, [1, 300]) # 5 minutes of data
+entry = ValuesEntry(id='temperature.csv')
+u.add_entry(entry) # must be called before setting data
+entry.set_data(temperature, sampleRate=1, unit='C')
+```
 
 ## EventEntry
+
+`EventEntry` is used for data that is not sampled continuously, but recorded on an event basis, e.g. 
+
+```Python
+from unisens import Unisens, EventEntry
+
+u = Unisens('c:/unisens', makenew=True, autosave=True)
+temperature = []
+times = []
+```
+
 
 ## CustomEntry
 
