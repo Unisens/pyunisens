@@ -104,18 +104,25 @@ class Unisens(Entry):
         
     
     def __str__(self):
-        duration = self.__dict__.get('duration', 0)
-        duration = str(datetime.timedelta(seconds=int(duration)))
+        try:
+            duration = int(str2num(self.__dict__.get('duration', 0)))
+            duration = str(datetime.timedelta(seconds=int(duration)))
+        except:
+            duration = 'Can\'t calculate duration' 
         n_entries = len(self.entries) if hasattr(self, 'entries') else 0
         id = self.__dict__.get('measurementId', 'no ID')
         s = 'Unisens: {}({}, {} entries)'.format(id, duration, n_entries)
+
         return s
     
     def __repr__(self):
         comment = self.attrib.get('comment', '')
         comment = comment[:20] + '[..]'*(len(comment)>0)
-        duration = self.attrib.get('duration', 0)
-        duration = str(datetime.timedelta(seconds=int(duration)))
+        try:
+            duration = int(str2num(self.__dict__.get('duration', 0)))
+            duration = str(datetime.timedelta(seconds=int(duration)))
+        except:
+            duration = 'Can\'t calculate duration' 
         measurementId = self.attrib.get('measurementId', 0)
         timestampStart = self.attrib.get('timestampStart', 0)
 
