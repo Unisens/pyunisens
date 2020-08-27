@@ -59,6 +59,7 @@ def str2num(string, decimal_sep='.'):
         '1,2' => 1.2
         'True' => True
     """
+    if not isinstance(string, str): return string
     if string.isdigit(): return int(string)
     if string=='True': return True
     if string=='False': return False

@@ -108,7 +108,7 @@ class Unisens(Entry):
             duration = int(str2num(self.__dict__.get('duration', 0)))
             duration = str(datetime.timedelta(seconds=int(duration)))
         except:
-            duration = 'Can\'t calculate duration' 
+            duration = 'N/A' 
         n_entries = len(self.entries) if hasattr(self, 'entries') else 0
         id = self.__dict__.get('measurementId', 'no ID')
         s = 'Unisens: {}({}, {} entries)'.format(id, duration, n_entries)
