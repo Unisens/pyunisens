@@ -6,6 +6,7 @@ some helper functions
 
 @author: skjerns
 """
+import re
 from types import GeneratorType
 import numpy as np
 from collections import OrderedDict
@@ -14,6 +15,14 @@ from collections import OrderedDict
 # a helper function for anti-camel case first letter
 lowercase = lambda s: s[:1].lower() + s[1:] if s else ''
 
+# chars that are forbidden for identifiers of attributes
+forbidden_identifiers = {x:95 for x in list(range(32,48))+
+                                       list(range(58,65))+
+                                       list(range(91,97))+
+                                       list(range(123,999))}
+
+# lookup-table for forbidden chars for filenames. dict for speed.
+forbidden_for_filename = set(':*?"<>|')
 
 def indent(elem, level=0):
     """
@@ -49,7 +58,8 @@ def num2str(element, decimal_sep='.'):
     if isinstance(element, float):
         return str(element).replace('.', decimal_sep)
     return str(element)
-    
+
+
 def str2num(string, decimal_sep='.'):
     """
     A helper function that converts strings to numbers if possible
@@ -64,8 +74,9 @@ def str2num(string, decimal_sep='.'):
     if string=='True': return True
     if string=='False': return False
     try: 
-        string_x = string.replace(decimal_sep, '.')
-        string_x = string_x.replace('_', '#') # necessary because of PEP-515
+        string_x = string.translate({ord(decimal_sep): 46})
+        # necessary because of PEP-515, ignore _ in strings
+        string_x = string_x.translate({95:35})
         return float(string_x)
     except: return string
     
@@ -175,7 +186,6 @@ class AttrDict(OrderedDict):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
   
-
 def valid_filename(name:str):
     """
     Checks whether a filename follows the naming conventions
@@ -189,16 +199,37 @@ def valid_filename(name:str):
     -------
     whether the filename is valid and can be created on a disk.
     """
+    if name.isalnum(): return True
     if name.startswith('/') or name.startswith('\\'):
         # this gives an os.path error
         raise ValueError(f'ID cannot start with \\ or / is "{name}"')
         
-    forbidden = ':*?"<>|'
-    for s in name:
-        if s in forbidden:
-            raise ValueError('ID cannot contain :*?"<>|')
+    if not set(name).isdisjoint(forbidden_for_filename):
+        raise ValueError('ID cannot contain :*?"<>|')
     return True
 
+
+def check1(name):
+    for s in name:
+        if s in forbidden_for_filename:
+            raise ValueError('ID cannot contain :*?"<>|')
+
+def check2(name):
+    return set(name).isdisjoint(forbidden_for_filename)
+
+def check3(name):
+    for s in forbidden_for_filename:
+        if s in name:
+            raise ValueError('ID cannot contain :*?"<>|')
+
+def check4(name):
+    name = set(name)
+    for s in forbidden_for_filename:
+        if s in name:
+            raise ValueError('ID cannot contain :*?"<>|')
+
+
+# @profile
 def make_key(string:str):
     """
     A function that turns any string into a valid python variable string
@@ -212,12 +243,12 @@ def make_key(string:str):
     -------
     the string corrected for characters other than a-z, 0-9, _.
     """
-    if string.isidentifier(): return string
-    allowed = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012345678_'
     if string[0].isdigit():
         string = 'x_' + string
-    return ''.join([s if s in allowed else '_' for s in string])
-    
+    identifier = string.translate(forbidden_identifiers)
+    return identifier
+
+
 def validkey(key):
     """
     Check if a tag or a key is valid.

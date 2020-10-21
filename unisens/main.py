@@ -135,8 +135,6 @@ class Unisens(Entry):
                 self.save()
 
     
-    
-    # @profile
     def add_entry(self, entry:Entry):
         """
         Add a subentry to this unisens object, e.g ValueEntry, SignalEntry

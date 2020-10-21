@@ -60,15 +60,14 @@ class Entry():
     # @profile
     def __init__(self, attrib=None, parent='.', **kwargs):
 
-        
-        if attrib is None: 
+        if attrib is None:
             attrib=dict()
-        self.attrib = attrib
+        self.__dict__['attrib'] = attrib
         self.__dict__.update(self.attrib)
-        self._entries = list()
-        self._folder = parent._folder if isinstance(parent, Entry) else parent
-        self._parent = parent if isinstance(parent, Entry) else None
-        self._name = lowercase(type(self).__name__)
+        self.__dict__['_entries'] = []
+        self.__dict__['_folder'] = parent.__dict__['_folder'] if isinstance(parent, Entry) else parent
+        self.__dict__['_parent'] = parent if isinstance(parent, Entry) else None
+        self.__dict__['_name'] = lowercase(type(self).__name__)
         for key in kwargs:
             self.key = kwargs[key]
         self._autosave()
@@ -94,19 +93,20 @@ class Entry():
             isinstance(value, (int, float, bool, bytes, str)):
             self.set_attrib(name, value)
 
+    # @profile
     def __getattr__(self, key):
         if key == "__setstate__":
             raise AttributeError(key)
         try: return self.__dict__[key]
         except: pass
         try:
-            i, key = self._get_index(key)
-            return self.__dict__[key]
+            i, key2 = self._get_index(key)
+            return self.__dict__[key2]
         except KeyError:  
             return self.__getattribute__(key)
         raise AttributeError(f'{key} not found')
 
-
+    # @profile
     def __getitem__(self, key):
         if isinstance(key, str):
             i, key = self._get_index(key)
@@ -139,7 +139,8 @@ class Entry():
             if self._readonly:
                 raise IOError(f'Read only, can\'t write to {self._folder}.')
         return True
-    
+
+    # @profile
     def _get_index(self, id_or_name, raises=True):
         """
         Receive the index and key-name of an object.
@@ -174,7 +175,7 @@ class Entry():
                 id = entry.id
                 id_key = make_key(id)
                 if id_or_name.upper()==id:   
-                    return i, id_key# check for exact match
+                    return i, id_key # check for exact match
                 if id_key.upper()==id_or_name_key: 
                     return i, id_key # check for match in key notation
             else:
@@ -291,15 +292,14 @@ class Entry():
             Can be abbreviated, e.g. 'samples' instead of 'samples.csv'.
 
         """
-        
         i, key = self._get_index(name)
         entry = self._entries[i]
         del self._entries[i]
         del self.__dict__[key]
         # if this is an unisens object, also delete the referer there
-        if hasattr(self, 'entries'):
-            for key, e in list(self.entries.items()):
-                if e==entry: del self.entries[key]
+        if self.__dict__.get('entries') is not None:
+            for key, e in list(self.__dict__['entries'].items()):
+                if e==entry: del self.__dict__['entries'][key]
         return self
 
 
@@ -412,24 +412,29 @@ class FileEntry(Entry):
     def __repr__(self):
         id = self.attrib.get('id', 'None')
         return "<{}({})>".format(self._name, id)
-    
+
+    # @profile
     def __init__(self, id, attrib=None, parent='.', **kwargs):
         super().__init__(attrib=attrib, parent=parent, **kwargs)
         if 'id' in self.attrib:
             self._filename = os.path.join(self._folder, self.id)
             if not os.path.exists(self._filename):
-                logging.error('File {} does not exist'.format(self.id))     
+                logging.error('File {} does not exist'.format(self.id))
+                folder = os.path.dirname(self._filename)
+                if not os.path.exists(folder):
+                    os.makedirs(folder, exist_ok=True)
             self.set_attrib('id', self.attrib['id'])
         elif id:
             if os.path.splitext(str(id))[-1]=='':
                 logging.warning('id should be a filename with extension ie. .bin')
             self._filename = os.path.join(self._folder, id)
             self.set_attrib('id', id)
+            folder = os.path.dirname(self._filename)
+            if not os.path.exists(folder):
+                os.makedirs(folder, exist_ok=True)
         else:
             raise ValueError('id must be supplied')
         valid_filename(self.id)
-        folder = os.path.dirname(self._filename)
-        os.makedirs(folder, exist_ok=True)
         if isinstance(parent, Entry): parent.add_entry(self)
         
         
@@ -442,7 +447,7 @@ class SignalEntry(FileEntry):
     def __init__(self, id=None,  attrib=None, parent='.', **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
         
-        
+    # @profile
     def get_data(self, scaled:bool=True, return_type:str='numpy') -> np.array:
         """
         Will try to load the binary data using numpy.
@@ -754,7 +759,8 @@ class CustomEntry(FileEntry):
     def __init__(self, id=None, **kwargs):
         super().__init__(id=id, **kwargs)  
         self._autosave()
-        
+
+    # @profile
     def get_data(self, dtype='auto'):
         """
         Will load the binary data of this CustomEntry.
