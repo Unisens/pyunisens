@@ -16,7 +16,10 @@ from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
 from copy import deepcopy
 
-
+if "profile" not in locals():
+    """a hack for not having to remove the profile tags when not testing"""
+    def profile(func):
+        return func
 
 def get_module(name):
     try:

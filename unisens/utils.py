@@ -11,6 +11,10 @@ from types import GeneratorType
 import numpy as np
 from collections import OrderedDict
 
+if "profile" not in locals():
+    """a hack for not having to remove the profile tags when not testing"""
+    def profile(func):
+        return func
 
 # a helper function for anti-camel case first letter
 lowercase = lambda s: s[:1].lower() + s[1:] if s else ''
