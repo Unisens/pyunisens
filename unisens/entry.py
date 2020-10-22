@@ -16,10 +16,8 @@ from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
 from copy import deepcopy
 
-if "profile" not in vars():
-    """a hack for not having to remove the profile tags when not testing"""
-    def profile(func):
-        return func
+try: profile #a hack for not having to remove the profile tags when not testing
+except NameError: profile = lambda x: x   # pass-through decorator
 
 def get_module(name):
     try:

@@ -30,10 +30,8 @@ from .entry import EventEntry, CustomEntry, CustomAttributes
 from .utils import AttrDict, strip, validkey, lowercase, make_key, indent
 from .utils import str2num
 
-if "profile" not in vars():
-    """a hack for not having to remove the profile tags when not testing"""
-    def profile(func):
-        return func
+# try: profile #a hack for not having to remove the profile tags when not testing
+# except NameError: profile = lambda x: x   # pass-through decorator
 
 
 class Unisens(Entry):
