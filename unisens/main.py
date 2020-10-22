@@ -44,6 +44,7 @@ class Unisens(Entry):
                         If no unisens.xml is present and new=False
     :param attrib: The attribute 
     """
+    @profile
     def __init__(self, folder, makenew=False, autosave=False, readonly=False,
                  comment:str='', duration:int=0, measurementId:str='NaN', 
                  timestampStart='', filename='unisens.xml',
@@ -99,10 +100,7 @@ class Unisens(Entry):
             # self.set_attrib('xmlns:xsi', "http://www.w3.org/2001/XMLSchema-instance")
         self._autosave_enabled = autosave
         self._autosave()
-           
 
-        
-    
     def __str__(self):
         try:
             duration = int(str2num(self.__dict__.get('duration', 0)))
@@ -114,7 +112,7 @@ class Unisens(Entry):
         s = 'Unisens: {}({}, {} entries)'.format(id, duration, n_entries)
 
         return s
-    
+
     def __repr__(self):
         comment = self.attrib.get('comment', '')
         comment = comment[:20] + '[..]'*(len(comment)>0)
@@ -134,7 +132,7 @@ class Unisens(Entry):
         if self.__dict__.get('_autosave_enabled', False):
                 self.save()
 
-    
+    @profile
     def add_entry(self, entry:Entry):
         """
         Add a subentry to this unisens object, e.g ValueEntry, SignalEntry
@@ -150,7 +148,7 @@ class Unisens(Entry):
         super().add_entry(entry, stack=False)
         return self
     
-    # @profile
+    @profile
     def unpack_element(self, element:( Element, ET)) -> Entry:
         """
         Unpacks an xmltree element iteratively into an the
@@ -193,7 +191,6 @@ class Unisens(Entry):
             entry.add_entry(subentry)
         return entry
     
-    # @profile
     def save(self, folder:str=None, filename:str='unisens.xml') -> Entry:
         """
         Save this Unisens xml file to a given folder and filename.
@@ -220,7 +217,7 @@ class Unisens(Entry):
         return self
     
 
-    # @profile
+    @profile
     def read_unisens(self, folder:str, filename='unisens.xml') -> Entry:
         """
         Loads an XML Unisens file into this Unisens object.
@@ -232,7 +229,7 @@ class Unisens(Entry):
         """
         folder += '/' # to avoid any ospath errors and confusion, append /
         file = os.path.join(os.path.dirname(folder), filename)
-        if not os.path.exists(file):
+        if not os.path.isfile(file):
             raise FileNotFoundError('{} does not exist'.format(folder))
             
         try:

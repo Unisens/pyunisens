@@ -6,6 +6,8 @@ Created on Mon Jan  6 21:16:58 2020
 """
 import importlib
 import os, sys
+from os.path import join
+from os import access
 import numpy as np
 import logging
 from .utils import validkey, strip, lowercase, make_key, valid_filename
@@ -47,17 +49,16 @@ class Entry():
     """
     
 
-        
     def __len__(self):
         return len(self._entries)
-    
+
     def __iter__(self):
         return list(self._entries).__iter__()
-    
+
     def __repr__(self):
         return "<{}({})>".format(self._name, self.attrib)
  
-    # @profile
+    @profile
     def __init__(self, attrib=None, parent='.', **kwargs):
 
         if attrib is None:
@@ -71,7 +72,8 @@ class Entry():
         for key in kwargs:
             self.key = kwargs[key]
         self._autosave()
-        
+
+    @profile
     def __contains__(self, item):
         if item in self.__dict__: return True
         if make_key(item) in self.__dict__: return True
@@ -79,8 +81,9 @@ class Entry():
             self.__getitem__(item)
             return True
         except:
-            return False   
-    
+            return False
+
+    @profile
     def __setattr__(self, name:str, value:str):
         """
         Allows settings of attributes via .name = value.
@@ -93,7 +96,7 @@ class Entry():
             isinstance(value, (int, float, bool, bytes, str)):
             self.set_attrib(name, value)
 
-    # @profile
+    @profile
     def __getattr__(self, key):
         if key == "__setstate__":
             raise AttributeError(key)
@@ -106,7 +109,7 @@ class Entry():
             return self.__getattribute__(key)
         raise AttributeError(f'{key} not found')
 
-    # @profile
+    @profile
     def __getitem__(self, key):
         if isinstance(key, str):
             i, key = self._get_index(key)
@@ -140,7 +143,7 @@ class Entry():
                 raise IOError(f'Read only, can\'t write to {self._folder}.')
         return True
 
-    # @profile
+    @profile
     def _get_index(self, id_or_name, raises=True):
         """
         Receive the index and key-name of an object.
@@ -186,25 +189,33 @@ class Entry():
                 if name_key.upper()==id_or_name_key: 
                     return i, name
 
-        # then check for no file-ext match, eg 'text' matches to 'text.txt'
         found = []
         for i, entry in enumerate(self._entries):
             if hasattr(entry, 'id'):
-                id = entry.id.replace('\\', '/') # normalize to linux-slash
-                id_key = make_key(entry.id)
-                no_ext = os.path.splitext(id)[0].upper()
+                id = entry.id.replace('\\', '/').upper() # normalize to linux-slash
+                no_ext = id.rsplit('.', 1)[0] # remove file extension
+                # check if file without extension was requested
+                # e.g. 'test' for test.txt
                 if no_ext==id_or_name:
-                    found+=[(i, id_key)]
-                elif os.path.basename(no_ext)==id_or_name:
-                    found+=[(i, id_key)]
-                elif os.path.basename(id).upper()==id_or_name:
-                    found+=[(i, id_key)]
-                    
-        if len(found)==1: return found[0]     
+                    found+=[(i, make_key(entry.id))]
+                # contains a slash/subdir, so we need to trim that off
+                elif '/' in id:
+                    # e.g. 'test' was requested for 'sub/test.txt'
+                    if os.path.basename(no_ext)==id_or_name:
+                        found+=[(i, make_key(entry.id))]
+                    # e.g. 'test.txt' was requested for 'sub/test.txt'
+                    elif os.path.basename(id)==id_or_name:
+                        found+=[(i, make_key(entry.id))]
+                # no subdir, but full match
+                elif id==id_or_name:
+                    found+=[(i, make_key(entry.id))]
+
+
+
+        if len(found)==1: return found[0]
         if len(found)>1: raise IndexError(f'More than one match for {id_or_name}: {found}')
         raise KeyError(f'{id_or_name} not found')
         
-    
     def copy(self):
         """
         Create a deep copy of this Entry.
@@ -226,7 +237,7 @@ class Entry():
             copy = deepcopy(self)
         return copy
 
-    # @profile
+    @profile
     def add_entry(self, entry:'Entry', stack:bool=True):
         """
         Add an subentry to this entry
@@ -280,7 +291,7 @@ class Entry():
         self._autosave()
         return self
     
-    # @profile
+    @profile
     def remove_entry(self, name):
         """
         Removes an subentry by name.
@@ -302,7 +313,7 @@ class Entry():
                 if e==entry: del self.__dict__['entries'][key]
         return self
 
-
+    @profile
     def set_attrib(self, name:str, value:str):
         """
         Set an attribute of this Entry
@@ -319,7 +330,7 @@ class Entry():
         self.__dict__.update(self.attrib)
         self._autosave()
         return self
-    
+
     def get_attrib(self, name:str, default=None):
         """
         Retrieves an attribute of this Entry
@@ -334,7 +345,7 @@ class Entry():
         """
 
         return self.attrib.get(name, default)
-    
+
     def remove_attr(self, name:str):
         """
         Removes a custom attribute/value of this entry.
@@ -357,7 +368,6 @@ class Entry():
         self._autosave()
         return self           
         
-
     def to_element(self):
         """
         Converts this Entry and all its subentries into an XML Element.
@@ -376,7 +386,6 @@ class Entry():
         for subelement in self._entries:
             element.append(subelement.to_element())
         return element
-    
     
     def to_xml(self):
         """
@@ -401,7 +410,6 @@ class Entry():
         for entry in self._entries:
             entry.print_summary(indent+1)
 
-
 class FileEntry(Entry):
     """
     This is a Entry subtype that has an ID, ie a file associated with it.
@@ -413,12 +421,12 @@ class FileEntry(Entry):
         id = self.attrib.get('id', 'None')
         return "<{}({})>".format(self._name, id)
 
-    # @profile
+    @profile
     def __init__(self, id, attrib=None, parent='.', **kwargs):
         super().__init__(attrib=attrib, parent=parent, **kwargs)
         if 'id' in self.attrib:
-            self._filename = os.path.join(self._folder, self.id)
-            if not os.path.exists(self._filename):
+            self._filename = self._folder + '\\' +  self.id
+            if not os.access(self._filename, os.F_OK):
                 logging.error('File {} does not exist'.format(self.id))
                 folder = os.path.dirname(self._filename)
                 if not os.path.exists(folder):
@@ -447,7 +455,6 @@ class SignalEntry(FileEntry):
     def __init__(self, id=None,  attrib=None, parent='.', **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
         
-    # @profile
     def get_data(self, scaled:bool=True, return_type:str='numpy') -> np.array:
         """
         Will try to load the binary data using numpy.
@@ -760,7 +767,6 @@ class CustomEntry(FileEntry):
         super().__init__(id=id, **kwargs)  
         self._autosave()
 
-    # @profile
     def get_data(self, dtype='auto'):
         """
         Will load the binary data of this CustomEntry.
@@ -828,7 +834,6 @@ class CustomEntry(FileEntry):
             
         self.dataType = dtype
         return data
-    
     
     def set_data(self, data, dtype='auto', **kwargs):
         """
