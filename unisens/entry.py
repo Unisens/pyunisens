@@ -424,9 +424,10 @@ class FileEntry(Entry):
 
     @profile
     def __init__(self, id, attrib=None, parent='.', **kwargs):
+        if isinstance(id, str): id = id.replace('\\', '/')
         super().__init__(attrib=attrib, parent=parent, **kwargs)
         if 'id' in self.attrib:
-            self._filename = self._folder + '\\' +  self.id
+            self._filename = self._folder + '/' +  self.id
             if not os.access(self._filename, os.F_OK):
                 logging.error('File {} does not exist'.format(self.id))
                 folder = os.path.dirname(self._filename)
