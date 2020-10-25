@@ -59,7 +59,7 @@ class Entry():
     def __repr__(self):
         return "<{}({})>".format(self._name, self.attrib)
  
-    @profile
+    # @profile
     def __init__(self, attrib=None, parent='.', **kwargs):
 
         if attrib is None:
@@ -74,7 +74,7 @@ class Entry():
             self.key = kwargs[key]
         self._autosave()
 
-    @profile
+    # @profile
     def __contains__(self, item):
         if item in self.__dict__: return True
         if make_key(item) in self.__dict__: return True
@@ -84,7 +84,7 @@ class Entry():
         except:
             return False
 
-    @profile
+    # @profile
     def __setattr__(self, name:str, value:str):
         """
         Allows settings of attributes via .name = value.
@@ -97,7 +97,7 @@ class Entry():
             isinstance(value, (int, float, bool, bytes, str)):
             self.set_attrib(name, value)
 
-    @profile
+    # @profile
     def __getattr__(self, key):
         if key == "__setstate__":
             raise AttributeError(key)
@@ -110,7 +110,7 @@ class Entry():
             return self.__getattribute__(key)
         raise AttributeError(f'{key} not found')
 
-    @profile
+    # @profile
     def __getitem__(self, key):
         if isinstance(key, str):
             i, key = self._get_index(key)
@@ -144,7 +144,7 @@ class Entry():
                 raise IOError(f'Read only, can\'t write to {self._folder}.')
         return True
 
-    @profile
+    # @profile
     def _get_index(self, id_or_name, raises=True):
         """
         Receive the index and key-name of an object.
@@ -238,7 +238,7 @@ class Entry():
             copy = deepcopy(self)
         return copy
 
-    @profile
+    # @profile
     def add_entry(self, entry:'Entry', stack:bool=True):
         """
         Add an subentry to this entry
@@ -292,7 +292,7 @@ class Entry():
         self._autosave()
         return self
     
-    @profile
+    # @profile
     def remove_entry(self, name):
         """
         Removes an subentry by name.
@@ -314,7 +314,7 @@ class Entry():
                 if e==entry: del self.__dict__['entries'][key]
         return self
 
-    @profile
+    # @profile
     def set_attrib(self, name:str, value:str):
         """
         Set an attribute of this Entry
@@ -422,7 +422,7 @@ class FileEntry(Entry):
         id = self.attrib.get('id', 'None')
         return "<{}({})>".format(self._name, id)
 
-    @profile
+    # @profile
     def __init__(self, id, attrib=None, parent='.', **kwargs):
         if isinstance(id, str): id = id.replace('\\', '/')
         super().__init__(attrib=attrib, parent=parent, **kwargs)

@@ -47,7 +47,7 @@ class Unisens(Entry):
                         If no unisens.xml is present and new=False
     :param attrib: The attribute 
     """
-    @profile
+    # @profile
     def __init__(self, folder, makenew=False, autosave=False, readonly=False,
                  comment:str='', duration:int=0, measurementId:str='NaN', 
                  timestampStart='', filename='unisens.xml',
@@ -135,7 +135,7 @@ class Unisens(Entry):
         if self.__dict__.get('_autosave_enabled', False):
                 self.save()
 
-    @profile
+    # @profile
     def add_entry(self, entry:Entry):
         """
         Add a subentry to this unisens object, e.g ValueEntry, SignalEntry
@@ -151,7 +151,7 @@ class Unisens(Entry):
         super().add_entry(entry, stack=False)
         return self
     
-    @profile
+    # @profile
     def unpack_element(self, element:( Element, ET)) -> Entry:
         """
         Unpacks an xmltree element iteratively into an the
@@ -220,7 +220,7 @@ class Unisens(Entry):
         return self
     
 
-    @profile
+    # @profile
     def read_unisens(self, folder:str, filename='unisens.xml') -> Entry:
         """
         Loads an XML Unisens file into this Unisens object.
