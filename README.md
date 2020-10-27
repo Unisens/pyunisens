@@ -1,6 +1,5 @@
-[![Build Status](https://travis-ci.com/Unisens/pyunisens.svg?branch=master)](https://travis-ci.com/Unisens/pyunisens)  [![Coverage Status](https://coveralls.io/repos/github/Unisens/pyunisens/badge.svg?branch=master)](https://coveralls.io/github/Unisens/pyunisens?branch=master)
+![Python package](https://github.com/Unisens/pyunisens/workflows/Python%20package/badge.svg)
 
-[![Actions Status](https://xxx.execute-api.us-west-2.amazonaws.com/production/badge/Unisens/pyunisens)](https://xxx.execute-api.us-west-2.amazonaws.com/production/results/Unisens/pyunisens)
 
 # pyunisens
 Implementation of the Unisens data storage format
