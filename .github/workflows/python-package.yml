@@ -29,8 +29,8 @@ jobs:
         python -m pip install --upgrade pip
         pip install flake8 pytest
         pip install git+https://github.com/Unisens/pyunisens.git
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        if [ -f test-requirements.txt ]; then pip install -r test-requirements.txt; fi
+        pip install -r requirements.txt
+        pip install -r test-requirements.txt
 
     - name: Lint with flake8
       run: |
