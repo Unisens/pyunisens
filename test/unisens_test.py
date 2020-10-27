@@ -581,7 +581,7 @@ class Testing(unittest.TestCase):
         c = CustomEntry(id='test.bin', parent=u)
         c1=CustomEntry('sub/feat1.txt', parent=c).set_data('123')
         c2=CustomEntry('sub\\feat2.txt', parent=c).set_data('456')
-        with self.assertRaises(ValueError):
+        with self.assertRaises((ValueError, PermissionError)):
             CustomEntry('\\sub\\feat3.txt', parent=c).set_data('789')
             
         self.assertTrue(os.path.isfile(c1._filename), f'{c1._filename} not found')
@@ -801,11 +801,9 @@ class Testing(unittest.TestCase):
         self.assertEqual(u1.entry.int, 1)
         self.assertEqual(u1.entry.float, 1.5)
         self.assertEqual(u1.entry.bool, True)
-        
+
+
 if __name__ == '__main__':
-    
-    
-    
     unittest.main()
 
 
