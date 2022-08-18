@@ -481,7 +481,10 @@ class SignalEntry(FileEntry):
         dtype = np.__dict__.get(dtypestr, f'UNKOWN_DATATYPE: {dtypestr}')
         data = np.fromfile(self._filename, dtype=dtype)
         if scaled:
-            data = (data * float(self.lsbValue))
+            if 'baseline' in dir(self):
+                data = ((data-float(self.baseline)) * float(self.lsbValue))
+            else:
+                data = (data * float(self.lsbValue))
         return data.reshape([-1, n_channels]).T
     
     
