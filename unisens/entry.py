@@ -218,6 +218,31 @@ class Entry:
         if len(found) > 1: raise IndexError(f'More than one match for {id_or_name}: {found}')
         raise KeyError(f'{id_or_name} not found')
 
+    def _set_channels(self, ch_names, n_data):
+        if ch_names is not None:
+            if isinstance(ch_names, str): ch_names = [ch_names]
+            # this means new channel names are indicated and will overwrite.
+            assert len(ch_names) == n_data, f'len {ch_names}!={n_data}'
+            if hasattr(self, 'channel'):
+                logging.warning('Channels present will be overwritten')
+                self.remove_entry('channel')
+            for name in ch_names:
+                channel = MiscEntry('channel', key='name', value=name)
+                self.add_entry(channel)
+        elif not hasattr(self, 'channel'):
+            # this means no channel names are indicated and none exist
+            # we create new generic names for the channels
+            logging.info('No channel names indicated, will use generic names')
+            for i in range(n_data):
+                channel = MiscEntry('channel', key='name', value=f'ch_{i}')
+                self.add_entry(channel)
+        elif len(self.channel) == n_data:
+            # this means channel information is present and matches array
+            pass
+        else:
+            # this means there are channel names there but do not match n_data
+            raise ValueError('Channel names must match data')
+
     def copy(self):
         """
         Create a deep copy of this Entry.
@@ -562,32 +587,7 @@ class SignalEntry(FileEntry):
 
         #### dtype inference end
                 
-        # if we get a string supplied, we convert to list
-        if isinstance(ch_names, str): ch_names = [ch_names]
-
-        if ch_names is None and hasattr(self, 'channel') and \
-                len(self.channel) == len(data):
-            # this means channel information is present and matches array
-            pass
-        elif ch_names is not None:
-            # this means new channel names are indicated and will overwrite.
-            assert len(ch_names) == len(data), f'len {ch_names}!={len(data)}'
-            if hasattr(self, 'channel'):
-                logging.warning('Channels present will be overwritten')
-                self.remove_entry('channel')
-            for name in ch_names:
-                channel = MiscEntry('channel', key='name', value=name)
-                self.add_entry(channel)
-        elif ch_names is None and not hasattr(self, 'channel'):
-            # this means no channel names are indicated and none exist
-            # we create new generic names for the channels
-            logging.info('No channel names indicated, will use generic names')
-            for i in range(len(data)):
-                channel = MiscEntry('channel', key='name', value=f'ch_{i}')
-                self.add_entry(channel)
-        else:
-            # this means there are channel names there but do not match n_data
-            raise ValueError('Must indicate channel names')
+        self._set_channels(ch_names, n_data=len(data))
 
         # save data using numpy , 
         # .T because unisens reads rows*columns not columns*rows like numpy
@@ -727,32 +727,8 @@ class ValuesEntry(CsvFileEntry):
         # if we get a string supplied, we convert to list
         super().set_data(data, **kwargs)
 
-        if isinstance(ch_names, str): ch_names = [ch_names]
-        n_cols = len(data[0]) - 1
+        self._set_channels(ch_names, n_data=len(data[0]) - 1)
 
-        if ch_names is None and hasattr(self, 'channel') and \
-                len(self.channel) == n_cols:
-            # this means channel information is present and matches array
-            pass
-        elif ch_names is not None:
-            # this means new channel names are indicated and will overwrite.
-            assert len(ch_names) == n_cols, f'len {ch_names}!={len(data)}'
-            if hasattr(self, 'channel'):
-                logging.warning('Channels present will be overwritten')
-                self.remove_entry('channel')
-            for name in ch_names:
-                channel = MiscEntry('channel', key='name', value=name)
-                self.add_entry(channel)
-        elif ch_names is None and not hasattr(self, 'channel'):
-            # this means no channel names are indicated and none exist
-            # we create new generic names for the channels
-            logging.info('No channel names indicated, will use generic names')
-            for i in range(n_cols):
-                channel = MiscEntry('channel', key='name', value=f'ch_{i}')
-                self.add_entry(channel)
-        else:
-            # this means there are channel names there but do not match n_data
-            raise ValueError('Must indicate channel names')
         self._autosave()
         return self
 
