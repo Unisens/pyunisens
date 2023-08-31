@@ -112,7 +112,6 @@ class Entry:
             return self.__dict__[key2]
         except KeyError:
             return self.__getattribute__(key)
-        raise AttributeError(f'{key} not found')
 
     # @profile
     def __getitem__(self, key):
@@ -553,8 +552,6 @@ class SignalEntry(FileEntry):
         """
         self._check_readonly()
 
-        file = os.path.join(self._folder, self.id)
-        
         # if list, convert to numpy array
         if isinstance(data, list):
             # if the list entries are arrays, we can infer the dtype from them
@@ -591,7 +588,7 @@ class SignalEntry(FileEntry):
 
         # save data using numpy , 
         # .T because unisens reads rows*columns not columns*rows like numpy
-        data.T.tofile(file)
+        data.T.tofile(self._filename)
 
         if baseline is not None: self.set_attrib('baseline', baseline)
         if sampleRate is not None: self.set_attrib('sampleRate', sampleRate)
