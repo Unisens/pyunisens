@@ -11,20 +11,23 @@ from types import GeneratorType
 import numpy as np
 from collections import OrderedDict
 
-try: profile #a hack for not having to remove the profile tags when not testing
-except NameError: profile = lambda x: x   # pass-through decorator
+try:
+    profile  # a hack for not having to remove the profile tags when not testing
+except NameError:
+    profile = lambda x: x  # pass-through decorator
 
 # a helper function for anti-camel case first letter
 lowercase = lambda s: s[:1].lower() + s[1:] if s else ''
 
 # chars that are forbidden for identifiers of attributes
-forbidden_identifiers = {x:95 for x in list(range(32,48))+
-                                       list(range(58,65))+
-                                       list(range(91,97))+
-                                       list(range(123,999))}
+forbidden_identifiers = {x: 95 for x in list(range(32, 48)) +
+                         list(range(58, 65)) +
+                         list(range(91, 97)) +
+                         list(range(123, 999))}
 
 # lookup-table for forbidden chars for filenames. dict for speed.
 forbidden_for_filename = set(':*?"<>|')
+
 
 def indent(elem, level=0):
     """
@@ -37,7 +40,7 @@ def indent(elem, level=0):
     level : int, optional
         Level of intendation. The default is 0.
     """
-    
+
     i = "\n" + level * "   "
     if len(elem):
         if not elem.text or not elem.text.strip():
@@ -45,12 +48,13 @@ def indent(elem, level=0):
         if not elem.tail or not elem.tail.strip():
             elem.tail = i
         for elem in elem:
-            indent(elem, level+1)
+            indent(elem, level + 1)
         if not elem.tail or not elem.tail.strip():
             elem.tail = i
     else:
         if level and (not elem.tail or not elem.tail.strip()):
             elem.tail = i
+
 
 def num2str(element, decimal_sep='.'):
     """
@@ -73,16 +77,17 @@ def str2num(string, decimal_sep='.'):
     """
     if not isinstance(string, str): return string
     if string.isdigit(): return int(string)
-    if string=='True': return True
-    if string=='False': return False
-    try: 
+    if string == 'True': return True
+    if string == 'False': return False
+    try:
         string_x = string.translate({ord(decimal_sep): 46})
         # necessary because of PEP-515, ignore _ in strings
-        string_x = string_x.translate({95:35})
+        string_x = string_x.translate({95: 35})
         return float(string_x)
-    except: return string
-    
-    
+    except:
+        return string
+
+
 def write_csv(csv_file, data_list, sep=';', decimal_sep='.', comment=None):
     """
     Parameters
@@ -106,29 +111,29 @@ def write_csv(csv_file, data_list, sep=';', decimal_sep='.', comment=None):
 
     """
     # we accept data_lists or arrays
-    assert decimal_sep!=sep, 'Error, sep cannot be same as decimal_sep'
+    assert decimal_sep != sep, 'Error, sep cannot be same as decimal_sep'
     assert isinstance(data_list, (tuple, list, np.ndarray, GeneratorType)), \
-           'Must be list, tuple or array'
+        'Must be list, tuple or array'
     if isinstance(data_list, np.ndarray):
-        if data_list.ndim==1:
+        if data_list.ndim == 1:
             data_list = [line for line in data_list]
-        elif data_list.ndim==2:
+        elif data_list.ndim == 2:
             data_list = [[x for x in d] for d in data_list]
         else:
             raise ValueError('Array must be 1D or 2D')
 
     # first add the comments if there are any
-    csv_string = '' 
+    csv_string = ''
     if comment is not None:
         comment = comment.split('\n')
         csv_string += '# ' + '\n# '.join(comment) + '\n'
-    
+
     # now go through the data list or array.
     for line in data_list:
         # if it contains several elements, we separate them with sep.
         # additionally we convert the decimal separator
-        if isinstance(line, (list, np.ndarray, tuple)):            
-            csv_string += sep.join([num2str(e, decimal_sep)for e in line])
+        if isinstance(line, (list, np.ndarray, tuple)):
+            csv_string += sep.join([num2str(e, decimal_sep) for e in line])
         # if it's not a list, we just convert to string
         else:
             csv_string += num2str(line, decimal_sep)
@@ -137,6 +142,7 @@ def write_csv(csv_file, data_list, sep=';', decimal_sep='.', comment=None):
     with open(csv_file, 'w') as f:
         f.write(csv_string)
     return True
+
 
 def read_csv(csv_file, comment='#', sep=';', decimal_sep='.',
              convert_nums=False, keep_empty=False):
@@ -152,24 +158,24 @@ def read_csv(csv_file, comment='#', sep=';', decimal_sep='.',
     """
     with open(csv_file, 'r') as f:
         content = f.read()
-        
+
     # split in lines
     lines = content.split('\n')
-    
+
     # ignore comments and remove whitespaces
     lines = [line.strip() for line in lines if not line.startswith(comment)]
-    
+
     # remove empty lines
     if not keep_empty:
-        lines = [line for line in lines if (line!='' and line!=[])]
-    
+        lines = [line for line in lines if (line != '' and line != [])]
+
     # split into subentries and strip of whitespaces
     lines = [[el.strip() for el in line.split(sep)] for line in lines]
-    
+
     # remove empty last element
     if not keep_empty:
         for i, line in enumerate(lines):
-            if line[-1]=='': lines[i] = line[:-1]
+            if line[-1] == '': lines[i] = line[:-1]
 
     # convert to numbers if requested
     if convert_nums:
@@ -187,8 +193,9 @@ class AttrDict(OrderedDict):
     def __init__(self, *args, **kwargs):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
-  
-def valid_filename(name:str):
+
+
+def valid_filename(name: str):
     """
     Checks whether a filename follows the naming conventions
 
@@ -205,7 +212,7 @@ def valid_filename(name:str):
     if name.startswith('/') or name.startswith('\\'):
         # this gives an os.path error
         raise ValueError(f'ID cannot start with \\ or / is "{name}"')
-        
+
     if not set(name).isdisjoint(forbidden_for_filename):
         raise ValueError('ID cannot contain :*?"<>|')
     return True
@@ -216,13 +223,16 @@ def check1(name):
         if s in forbidden_for_filename:
             raise ValueError('ID cannot contain :*?"<>|')
 
+
 def check2(name):
     return set(name).isdisjoint(forbidden_for_filename)
+
 
 def check3(name):
     for s in forbidden_for_filename:
         if s in name:
             raise ValueError('ID cannot contain :*?"<>|')
+
 
 def check4(name):
     name = set(name)
@@ -232,7 +242,7 @@ def check4(name):
 
 
 # @profile
-def make_key(string:str):
+def make_key(string: str):
     """
     A function that turns any string into a valid python variable string
 
@@ -262,6 +272,7 @@ def validkey(key):
         raise ValueError('Key cannot start with a number: {}'.format(key))
     return key
 
+
 def strip(string):
     """
     Strip a unisense identifier string of unnecessary elements
@@ -269,4 +280,4 @@ def strip(string):
     """
     if '}' in string:
         string = string.split('}')[-1]
-    return string   
+    return string

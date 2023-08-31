@@ -30,6 +30,7 @@ from .entry import EventEntry, CustomEntry, CustomAttributes
 from .utils import AttrDict, strip, validkey, lowercase, make_key, indent
 from .utils import str2num
 
+
 # try: profile #a hack for not having to remove the profile tags when not testing
 # except NameError: profile = lambda x: x   # pass-through decorator
 
@@ -47,9 +48,10 @@ class Unisens(Entry):
                         If no unisens.xml is present and new=False
     :param attrib: The attribute 
     """
+
     # @profile
     def __init__(self, folder, makenew=False, autosave=False, readonly=False,
-                 comment:str='', duration:int=0, measurementId:str='NaN', 
+                 comment: str = '', duration: int = 0, measurementId: str = 'NaN',
                  timestampStart='', filename='unisens.xml',
                  convert_nums=False):
         """
@@ -67,7 +69,7 @@ class Unisens(Entry):
         :param attrib: The attribute 
         :param convert_nums: try to convert numbers from attribs automatically
         """
-        assert autosave!=readonly or not autosave and not readonly, \
+        assert autosave != readonly or not autosave and not readonly, \
             'either read-only or autosave can be enabled'
         assert isinstance(folder, str), f'folder must be string, is {folder}'
         self._folder = folder
@@ -80,18 +82,16 @@ class Unisens(Entry):
         self._name = 'unisens'
         self._readonly = readonly
         self._convert_nums = convert_nums
-        
+
         if os.path.isfile(self._file) and not makenew:
-            logging.debug('loading unisens.xml from {}'.format(\
-                         self._file))
+            logging.debug('loading unisens.xml from {}'.format(self._file))
             self.read_unisens(folder, filename=filename)
         else:
-            logging.debug('New unisens.xml will be created at {}'.format(\
-                         self._file))
+            logging.debug('New unisens.xml will be created at {}'.format(self._file))
             if not timestampStart:
                 now = datetime.datetime.now()
                 timestampStart = now.strftime('%Y-%m-%dT%H:%M:%S')
-            self.attrib  ={}
+            self.attrib = {}
             self.set_attrib('comment', comment)
             self.set_attrib('duration', duration)
             self.set_attrib('measurementId', measurementId)
@@ -109,7 +109,7 @@ class Unisens(Entry):
             duration = int(str2num(self.__dict__.get('duration', 0)))
             duration = str(datetime.timedelta(seconds=int(duration)))
         except:
-            duration = 'N/A' 
+            duration = 'N/A'
         n_entries = len(self.entries) if hasattr(self, 'entries') else 0
         id = self.__dict__.get('measurementId', 'no ID')
         s = 'Unisens: {}({}, {} entries)'.format(id, duration, n_entries)
@@ -118,25 +118,25 @@ class Unisens(Entry):
 
     def __repr__(self):
         comment = self.attrib.get('comment', '')
-        comment = comment[:20] + '[..]'*(len(comment)>0)
+        comment = comment[:20] + '[..]' * (len(comment) > 0)
         try:
             duration = int(str2num(self.__dict__.get('duration', 0)))
             duration = str(datetime.timedelta(seconds=int(duration)))
         except:
-            duration = 'Can\'t calculate duration' 
+            duration = 'Can\'t calculate duration'
         measurementId = self.attrib.get('measurementId', 0)
         timestampStart = self.attrib.get('timestampStart', 0)
 
         s = f'Unisens(comment={comment}, duration={duration},  ' \
             f'id={measurementId},timestampStart={timestampStart})'
-        return s    
+        return s
 
     def _autosave(self):
         if self.__dict__.get('_autosave_enabled', False):
-                self.save()
+            self.save()
 
     # @profile
-    def add_entry(self, entry:Entry):
+    def add_entry(self, entry: Entry):
         """
         Add a subentry to this unisens object, e.g ValueEntry, SignalEntry
         
@@ -145,14 +145,14 @@ class Unisens(Entry):
         """
         entry._folder = self._folder
         if isinstance(entry, FileEntry):
-            if entry.id in self:            
+            if entry.id in self:
                 raise KeyError(f'{entry.id} already present in Unisens')
             self.entries[entry.id] = entry
         super().add_entry(entry, stack=False)
         return self
-    
+
     # @profile
-    def unpack_element(self, element:( Element, ET)) -> Entry:
+    def unpack_element(self, element: (Element, ET)) -> Entry:
         """
         Unpacks an xmltree element iteratively into an the
         corresponding subtype Entry object.
@@ -164,12 +164,12 @@ class Unisens(Entry):
         if self._convert_nums:
             for key, value in attrib.items():
                 attrib[key] = str2num(value)
-        
+
         entryType = strip(element.tag)
         if entryType == 'customAttributes':
             entry = CustomAttributes(attrib=attrib, parent=self._folder)
         elif entryType == 'eventEntry':
-            entry = EventEntry(attrib=attrib, parent=self._folder, 
+            entry = EventEntry(attrib=attrib, parent=self._folder,
                                separator=';', decimalSeparator='.')
         elif entryType == 'signalEntry':
             entry = SignalEntry(attrib=attrib, parent=self._folder)
@@ -178,7 +178,7 @@ class Unisens(Entry):
                                 separator=';', decimalSeparator='.')
         elif entryType == 'customEntry':
             entry = CustomEntry(attrib=attrib, parent=self._folder)
-        elif entryType in ('context', 'group', 'customAttribute', 
+        elif entryType in ('context', 'group', 'customAttribute',
                            'csvFileFormat', 'channel', 'binFileFormat',
                            'customFileFormat', 'groupEntry'):
             name = element.tag
@@ -187,14 +187,14 @@ class Unisens(Entry):
             if not 'Entry' in element.tag:
                 logging.warning('Unknown entry type: {}'.format(entryType))
             name = element.tag
-            entry = MiscEntry(name=name, attrib=attrib, parent=self._folder)            
-                
+            entry = MiscEntry(name=name, attrib=attrib, parent=self._folder)
+
         for subelement in element:
             subentry = self.unpack_element(subelement)
             entry.add_entry(subentry)
         return entry
-    
-    def save(self, folder:str=None, filename:str='unisens.xml') -> Entry:
+
+    def save(self, folder: str = None, filename: str = 'unisens.xml') -> Entry:
         """
         Save this Unisens xml file to a given folder and filename.
         filename should be unisens.xml, but can be altered if necessary
@@ -204,64 +204,63 @@ class Unisens(Entry):
         :param filename: the filename to save. use unisens.xml.
         """
         self._check_readonly()
-        
+
         if folder is None:
             folder = self._folder
         if filename is None:
             filename = os.path.basename(self._file)
-            
+
         file = os.path.join(folder, filename)
         ET.register_namespace("", "http://www.unisens.org/unisens2.0")
         element = self.to_element()
         indent(element)
         et = ET.ElementTree(element)
-        et.write(file, xml_declaration=True, default_namespace='', 
+        et.write(file, xml_declaration=True, default_namespace='',
                  encoding='utf-8')
         return self
-    
 
     # @profile
-    def read_unisens(self, folder:str, filename='unisens.xml') -> Entry:
+    def read_unisens(self, folder: str, filename='unisens.xml') -> Entry:
         """
         Loads an XML Unisens file into this Unisens object.
         That means, self.attrib and self.children are added
         as well as tag, tail and text
         
-        :param folder: folder where the unisens.xml is located. 
+        :param folder: folder where the unisens.xml is located.
+        :param filename: usually 'unisens.xml'
         :returns: self
         """
-        folder += '/' # to avoid any ospath errors and confusion, append /
+        folder += '/'  # to avoid any ospath errors and confusion, append /
         file = os.path.join(os.path.dirname(folder), filename)
         if not os.path.isfile(file):
             raise FileNotFoundError('{} does not exist'.format(folder))
-            
+
         try:
             root = ET.parse(file).getroot()
         except Exception as e:
             print('Error reading {}'.format(file))
             raise e
-        
+
         # copy all attributes from root to this Unisens object
         self.attrib = root.attrib
-        
+
         # convert strings to numbers if that is requested
-        
+
         if self._convert_nums:
             for key, value in self.attrib.items():
                 self.attrib[key] = str2num(value)
-        
+
         # now add all elements that are contained in this XML object
-        
+
         for element in root:
             entry = self.unpack_element(element)
             self.add_entry(entry)
             id = entry.attrib.get('id', entry._name)
             self.entries[id] = entry
-            
+
         self.__dict__.update(self.attrib)
         keys = [make_key(key) for key in self.entries]
         entries = zip(keys, self.entries.values())
         self.__dict__.update(entries)
 
         return self
-    
