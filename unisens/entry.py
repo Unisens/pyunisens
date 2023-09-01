@@ -4,6 +4,8 @@ Created on Mon Jan 6 21:16:58 2020
 
 @author: skjerns
 """
+from __future__ import annotations
+
 import importlib
 import os, sys
 from os.path import join
@@ -264,7 +266,7 @@ class Entry:
         return copy
 
     # @profile
-    def add_entry(self, entry: 'Entry', stack: bool = True):
+    def add_entry(self, entry: Entry, stack: bool = True):
         """
         Add an subentry to this entry
         
@@ -897,7 +899,7 @@ class CustomAttributes(Entry):
             element.append(subelement)
         return element
 
-    def add_entry(self, entry: 'MiscEntry'):
+    def add_entry(self, entry: MiscEntry):
         if entry._name != 'customAttribute':
             logging.error('Can only add customAttribute type')
             return
