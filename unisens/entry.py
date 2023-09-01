@@ -12,7 +12,7 @@ from os.path import join
 from os import access
 import numpy as np
 import logging
-from .utils import validkey, strip, lowercase, make_key, valid_filename
+from .utils import validkey, strip, lowercase, make_key, valid_filename, infer_dtype
 from .utils import read_csv, write_csv
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
@@ -516,7 +516,8 @@ class SignalEntry(FileEntry):
     def set_data(self, data: np.ndarray, dataType: str = None, ch_names: list = None,
                  sampleRate: int = 256, lsbValue: float = 1, unit: str = None,
                  comment: str = None, contentClass: str = None,
-                 adcResolution: int = None, baseline: float = None, **kwargs):
+                 adcResolution: int = None, baseline: float = None,
+                 decimalSeparator='.', separator=';', **kwargs):
         """
         Set the data that is connected to this SignalEntry.
         The data will in any case be saved with Endianness LITTLE,
@@ -554,43 +555,30 @@ class SignalEntry(FileEntry):
         """
         self._check_readonly()
 
-        # if list, convert to numpy array
-        if isinstance(data, list):
-            # if the list entries are arrays, we can infer the dtype from them
-            if isinstance(data[0], np.ndarray) and dataType is None:
-                dtype = str(data[0].dtype)
-            else:
-                dtype = type(data[0][0])
-            if dtype==np.int64 or dtype==int: dtype=np.int32
-            data = np.array(data, dtype=dtype)
-        
-        data = np.atleast_2d(data)
-        order = sys.byteorder.upper() # endianess
-        fileFormat = MiscEntry('binFileFormat', key='endianess', value=order)
-        self.add_entry(fileFormat)
+        data = np.atleast_2d(np.array(data))
+        if self.id.endswith('csv'):
+            fileFormat = MiscEntry('csvFileFormat', parent=self)
+            fileFormat.set_attrib('decimalSeparator', decimalSeparator)
+            fileFormat.set_attrib('separator', separator)
+            self.add_entry(fileFormat)
 
-        #### dtype inference start
-        dtype_mapping = {'float16': 'float',
-                         'float32': 'float',
-                         'float64': 'double',
-                         'int': 'int32'}
+            write_csv(self._filename, data, sep=self.csvFileFormat.separator,
+                      decimal_sep=self.csvFileFormat.decimalSeparator)
+        elif self.id.endswith('bin'):
+            if dataType is None:
+                dataType = str(data.dtype).upper()
+            dataType = infer_dtype(dataType)
 
-        if dataType is None:
-            dataType = str(data.dtype).upper()
+            order = sys.byteorder.upper()  # endianess
+            fileFormat = MiscEntry('binFileFormat', key='endianess', value=order)
+            self.add_entry(fileFormat)
 
-        dataType = dtype_mapping.get(dataType.lower(), dataType)
-        allowed_dtypes = ['DOUBLE', 'FLOAT', 'INT16', 'INT32', 
-                          'INT8', 'UINT16', 'UINT32', 'UINT8']
-        assert dataType.upper() in allowed_dtypes,\
-                f'{dataType} is not in {allowed_dtypes}'
+            # save data transposed because unisens reads rows*columns not columns*rows like numpy
+            data.T.tofile(self._filename)
+        else:
+            raise ValueError('incompatible id: SignalEntry only allows for .bin or .csv format')
 
-        #### dtype inference end
-                
         self._set_channels(ch_names, n_data=len(data))
-
-        # save data using numpy , 
-        # .T because unisens reads rows*columns not columns*rows like numpy
-        data.T.tofile(self._filename)
 
         if baseline is not None: self.set_attrib('baseline', baseline)
         if sampleRate is not None: self.set_attrib('sampleRate', sampleRate)
