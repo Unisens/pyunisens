@@ -454,27 +454,25 @@ class FileEntry(Entry):
 
     # @profile
     def __init__(self, id, attrib=None, parent='.', **kwargs):
-        if isinstance(id, str): id = id.replace('\\', '/')
         super().__init__(attrib=attrib, parent=parent, **kwargs)
         if 'id' in self.attrib:
-            self._filename = self._folder + '/' + self.id
+            # reading entry (id == None)
+            valid_filename(self.id)
+            self._filename = os.path.join(self._folder, self.id)
             if not os.access(self._filename, os.F_OK):
                 logging.error('File {} does not exist'.format(self.id))
-                folder = os.path.dirname(self._filename)
-                if not os.path.exists(folder):
-                    os.makedirs(folder, exist_ok=True)
-            self.set_attrib('id', self.attrib['id'])
         elif id:
+            # writing entry
+            valid_filename(id)
             if os.path.splitext(str(id))[-1] == '':
                 logging.warning('id should be a filename with extension ie. .bin')
             self._filename = os.path.join(self._folder, id)
             self.set_attrib('id', id)
-            folder = os.path.dirname(self._filename)
-            if not os.path.exists(folder):
-                os.makedirs(folder, exist_ok=True)
+            if '/' in id or '\\' in id:
+                sub_folder = os.path.dirname(self._filename)
+                os.makedirs(sub_folder, exist_ok=True)
         else:
             raise ValueError('id must be supplied')
-        valid_filename(self.id)
         if isinstance(parent, Entry): parent.add_entry(self)
 
 

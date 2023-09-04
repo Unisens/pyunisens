@@ -555,17 +555,17 @@ class Testing(unittest.TestCase):
         folder = tempfile.mkdtemp(prefix='unisens_x')
         u = Unisens(folder, makenew=True, autosave=True)
         c = CustomEntry(id='test.bin', parent=u)
-        c1 = CustomEntry('sub/feat1.txt', parent=c).set_data('123')
-        c2 = CustomEntry('sub\\feat2.txt', parent=c).set_data('456')
+        c1 = CustomEntry('sub1/feat1.txt', parent=c).set_data('123')
+        c2 = CustomEntry('sub2\\feat2.txt', parent=c).set_data('456')
         with self.assertRaises((ValueError, PermissionError, OSError)):
-            CustomEntry('\\sub\\feat3.txt', parent=c).set_data('789')
+            CustomEntry('\\sub\\feat3.txt', parent=c)
 
         self.assertTrue(os.path.isfile(c1._filename), f'{c1._filename} not found')
         self.assertTrue(os.path.isfile(c2._filename), f'{c2._filename} not found')
         with open(os.path.join(folder, 'test.bin'), 'w'): pass
         u = Unisens(folder)
         self.assertEqual(u['test']['feat1'].get_data(), '123')
-        self.assertEqual(u['test']['sub/feat2.txt'].get_data(), '456')
+        self.assertEqual(u['test']['sub2/feat2.txt'].get_data(), '456')
 
     def test_copy(self):
         folder = tempfile.mkdtemp(prefix='unisens_copy')
