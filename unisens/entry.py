@@ -513,11 +513,12 @@ class SignalEntry(FileEntry):
                 data = (data * float(self.lsbValue))
         return data.reshape([-1, n_channels]).T
 
-    def set_data(self, data: np.ndarray, dataType: str = None, ch_names: list = None,
-                 sampleRate: int = 256, lsbValue: float = 1, unit: str = None,
+    def set_data(self, data: np.ndarray, sampleRate: float, dataType: str = None,
+                 ch_names: list = None, unit: str = None,
+                 lsbValue: float = 1, adcZero: int = None,
+                 adcResolution: int = None, baseline: int = None,
                  comment: str = None, contentClass: str = None,
-                 adcResolution: int = None, baseline: float = None,
-                 decimalSeparator='.', separator=';', **kwargs):
+                 decimalSeparator: str = '.', separator: str = ';', **kwargs):
         """
         Set the data that is connected to this SignalEntry.
         The data will in any case be saved with Endianness LITTLE,
@@ -556,6 +557,10 @@ class SignalEntry(FileEntry):
         self._check_readonly()
 
         data = np.atleast_2d(np.array(data))
+        if dataType is None:
+            dataType = str(data.dtype).upper()
+        dataType = infer_dtype(dataType)
+
         if self.id.endswith('csv'):
             fileFormat = MiscEntry('csvFileFormat', parent=self)
             fileFormat.set_attrib('decimalSeparator', decimalSeparator)
@@ -565,10 +570,6 @@ class SignalEntry(FileEntry):
             write_csv(self._filename, data, sep=self.csvFileFormat.separator,
                       decimal_sep=self.csvFileFormat.decimalSeparator)
         elif self.id.endswith('bin'):
-            if dataType is None:
-                dataType = str(data.dtype).upper()
-            dataType = infer_dtype(dataType)
-
             order = sys.byteorder.upper()  # endianess
             fileFormat = MiscEntry('binFileFormat', key='endianess', value=order)
             self.add_entry(fileFormat)
@@ -586,7 +587,8 @@ class SignalEntry(FileEntry):
         if unit is not None: self.set_attrib('unit', unit)
         if comment is not None: self.set_attrib('comment', comment)
         if contentClass is not None: self.set_attrib('contentClass', contentClass)
-        if dataType is not None: self.set_attrib('dataType', dataType.lower())
+        self.set_attrib('dataType', dataType.lower())
+        if adcZero is not None: self.set_attrib('adcZero', adcZero)
         if adcResolution is not None: self.set_attrib('adcResolution', adcResolution)
 
         # set all other keyword arguments/comments as well.

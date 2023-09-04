@@ -145,7 +145,7 @@ class Testing(unittest.TestCase):
             if entrytype == CustomEntry:
                 entry.set_data('test')
             else:
-                entry.set_data([[1, 2, 3], [1, 2, 3]])
+                entry.set_data([[1, 2, 3], [1, 2, 3]], sampleRate=256)
 
         self.assertEqual(len(u), 4)
         self.assertEqual(len(u.entries), 4)
