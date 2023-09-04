@@ -288,6 +288,7 @@ def infer_dtype(dataType: str) -> str:
     dtype_mapping = {'FLOAT16': 'FLOAT',
                      'FLOAT32': 'FLOAT',
                      'FLOAT64': 'DOUBLE',
+                     'INT64': 'INT32',
                      'INT': 'INT32'}
     dataType = dtype_mapping.get(dataType, dataType)
     allowed_dtypes = ['DOUBLE', 'FLOAT', 'INT16', 'INT32',
