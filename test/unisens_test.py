@@ -26,12 +26,15 @@ def elements_equal(e1, e2):
 
 
 class Testing(unittest.TestCase):
+    tmpdir = os.path.join(os.path.dirname(__file__), 'tmp')
 
-    def setUp(self):
-        self.tmpdir = tempfile.mkdtemp(prefix='unisens')
+    @classmethod
+    def setUp(cls):
+        os.makedirs(cls.tmpdir, exist_ok=True)
 
-    def tearDown(self):
-        shutil.rmtree(self.tmpdir)
+    @classmethod
+    def tearDown(cls):
+        shutil.rmtree(cls.tmpdir)
 
     def test_unisens_creation(self):
         folder = os.path.join(self.tmpdir, 'data', 'record1')
@@ -416,7 +419,6 @@ class Testing(unittest.TestCase):
         self.assertDictEqual(u['pickle.pkl'].get_data(), data)
 
     def test_save_csvetry(self):
-        self.tmpdir = tempfile.mkdtemp(prefix='unisens')
 
         folder = os.path.join(self.tmpdir, 'data', 'record1')
 
@@ -461,7 +463,6 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(times, times2)
 
     def test_save_valuesentry(self):
-        self.tmpdir = tempfile.mkdtemp(prefix='unisens')
 
         folder = os.path.join(self.tmpdir, 'data', 'record1')
 

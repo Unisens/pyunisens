@@ -12,19 +12,19 @@ import tempfile
 import numpy as np
 
 
-
 class Testing(unittest.TestCase):
-    
-    def setUp(self):
-        self.tmpdir = tempfile.mkdtemp(prefix='unisens')
-        
-    def tearDown(self):
-        shutil.rmtree(self.tmpdir)
-    
+    tmpdir = os.path.join(os.path.dirname(__file__), 'tmp')
 
-    def test_read_write_csv(self):        
+    @classmethod
+    def setUp(cls):
+        os.makedirs(cls.tmpdir, exist_ok=True)
+
+    @classmethod
+    def tearDown(cls):
+        shutil.rmtree(cls.tmpdir)
+
+    def test_read_write_csv(self):
         file = os.path.join(self.tmpdir, 'file.csv')
-
 
         with self.assertRaises(AssertionError):
             utils.write_csv(file, [3,4,4], sep=',', decimal_sep=',')
