@@ -8,7 +8,6 @@ import os
 from unisens import utils
 import unittest
 import shutil
-import tempfile
 import numpy as np
 
 

@@ -11,7 +11,6 @@ from unisens import CsvFileEntry
 
 import unittest
 import shutil
-import tempfile
 import numpy as np
 import pickle
 
@@ -419,7 +418,6 @@ class Testing(unittest.TestCase):
         self.assertDictEqual(u['pickle.pkl'].get_data(), data)
 
     def test_save_csvetry(self):
-
         folder = os.path.join(self.tmpdir, 'data', 'record1')
 
         u = Unisens(folder, makenew=True)
@@ -463,7 +461,6 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(times, times2)
 
     def test_save_valuesentry(self):
-
         folder = os.path.join(self.tmpdir, 'data', 'record1')
 
         u = Unisens(folder, makenew=True)
@@ -507,7 +504,7 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(times, times2)
 
     def test_access_no_ext_item(self):
-        u = Unisens(tempfile.mkdtemp(prefix='unisens'))
+        u = Unisens(self.tmpdir, makenew=True)
         entry1 = SignalEntry('single.csv', parent=u)
         entry2 = SignalEntry('double.csv', parent=u)
         entry3 = SignalEntry('double.bin', parent=u)
@@ -525,7 +522,7 @@ class Testing(unittest.TestCase):
         self.assertNotIn('double', u)
 
     def test_access_no_ext_attrib(self):
-        u = Unisens(tempfile.mkdtemp(prefix='unisens'))
+        u = Unisens(self.tmpdir, makenew=True)
         entry1 = SignalEntry('single.csv', parent=u)
         entry2 = SignalEntry('double.csv', parent=u)
         entry3 = SignalEntry('double.bin', parent=u)
@@ -539,7 +536,7 @@ class Testing(unittest.TestCase):
 
     def test_subentries(self):
         """this is not officially supported, but useful"""
-        folder = tempfile.mkdtemp(prefix='unisens_x')
+        folder = os.path.join(self.tmpdir, 'subentries')
         u = Unisens(folder, makenew=True, autosave=True)
         c = CustomEntry(id='test.bin', parent=u).set_data(b'123')
         CustomEntry('feat1.txt', parent=c).set_data('123')
@@ -553,7 +550,7 @@ class Testing(unittest.TestCase):
 
     def test_entries_with_subfolder(self):
         """this is not officially supported, but useful"""
-        folder = tempfile.mkdtemp(prefix='unisens_x')
+        folder = os.path.join(self.tmpdir, 'subfolder')
         u = Unisens(folder, makenew=True, autosave=True)
         c = CustomEntry(id='test.bin', parent=u)
         c1 = CustomEntry('sub1/feat1.txt', parent=c).set_data('123')
@@ -569,7 +566,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(u['test']['sub2/feat2.txt'].get_data(), '456')
 
     def test_copy(self):
-        folder = tempfile.mkdtemp(prefix='unisens_copy')
+        folder = os.path.join(self.tmpdir, 'copy')
         u1 = Unisens(folder, makenew=True, autosave=True)
         CustomEntry('test1.txt', parent=u1).set_data('asd')
         u2 = u1.copy()
@@ -588,7 +585,7 @@ class Testing(unittest.TestCase):
 
     def test_nostacking(self):
         """this is not officially supported, but useful"""
-        folder = tempfile.mkdtemp(prefix='unisens_')
+        folder = os.path.join(self.tmpdir, 'stack')
 
         c = CustomEntry(id='test.bin', parent=folder)
         f = FileEntry('feat1.txt', parent=folder)
@@ -619,7 +616,7 @@ class Testing(unittest.TestCase):
 
     def test_indexfinding(self):
         """try whether the index finding method is working correctly"""
-        folder = tempfile.mkdtemp(prefix='unisens_')
+        folder = os.path.join(self.tmpdir, 'index')
 
         c = CustomEntry(id='test.bin', parent=folder)
         FileEntry('feat1.txt', parent=c)
@@ -653,7 +650,7 @@ class Testing(unittest.TestCase):
 
     def test_indexfinding_subfolders(self):
         """try whether the index finding method is working correctly"""
-        folder = tempfile.mkdtemp(prefix='unisens_')
+        folder = os.path.join(self.tmpdir, 'index_subfolders')
 
         c = CustomEntry(id='test.bin', parent=folder)
         FileEntry('feat.txt', parent=c)
@@ -673,7 +670,7 @@ class Testing(unittest.TestCase):
             self.assertEqual(c._get_index('feat'), (0, 'feat_txt'))
 
     def test_nooverwrite(self):
-        folder = tempfile.mkdtemp(prefix='unisens_copy')
+        folder = os.path.join(self.tmpdir, 'no_overwrite')
         u = Unisens(folder, makenew=True, autosave=True)
         c = CustomEntry('test.txt', parent=u).set_attrib('a1', 'b1')
         self.assertEqual(u.test.a1, 'b1')
@@ -682,7 +679,7 @@ class Testing(unittest.TestCase):
             CustomEntry('asd.bin', parent=c)
 
     def test_loaddifferentfile(self):
-        folder = tempfile.mkdtemp(prefix='unisens_newfile')
+        folder = os.path.join(self.tmpdir, 'newfile')
         u = Unisens(folder, makenew=True, autosave=False)
         c = CustomEntry('test.txt', parent=u).set_attrib('a1', 'b1').set_data('test')
         self.assertEqual(str(c), '<customEntry(test.txt)>')
@@ -696,7 +693,7 @@ class Testing(unittest.TestCase):
         self.assertTrue(elements_equal(u.to_element(), u2.to_element()))
 
     def test_loaddifferentfile2(self):
-        folder = tempfile.mkdtemp(prefix='unisens')
+        folder = os.path.join(self.tmpdir, 'diff_file')
         u = Unisens(folder, makenew=True, autosave=True)
         CustomEntry('test.bin', parent=u).set_data(b'test')
         u.remove_entry('test.bin')
@@ -708,7 +705,7 @@ class Testing(unittest.TestCase):
         u.remove_entry('test_bin')
 
     def test_repr_str(self):
-        folder = tempfile.mkdtemp(prefix='strrepr')
+        folder = os.path.join(self.tmpdir, 'strrepr')
         u = Unisens(folder, makenew=True, autosave=True)
         u.measurementId = 'thisid'
         u.duration = 60 * 2 + 60 * 60 * 2 + 5
@@ -718,7 +715,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(b, f'Unisens(comment=, duration=2:02:05,  id=thisid,timestampStart={u.timestampStart})')
 
     def test_serialize(self):
-        folder = tempfile.mkdtemp(prefix='seria')
+        folder = os.path.join(self.tmpdir, 'seria')
         u = Unisens(folder, makenew=True, autosave=True)
         CustomEntry('test.bin', parent=u).set_data(b'test')
         CustomEntry('test2.bin', parent=u).set_data(b'test2')
@@ -734,7 +731,7 @@ class Testing(unittest.TestCase):
         elements_equal(u.to_element(), u1.to_element())
 
     def test_convert_nums(self):
-        folder = tempfile.mkdtemp(prefix='convert_nums')
+        folder = os.path.join(self.tmpdir, 'convert_nums')
         u = Unisens(folder, makenew=True, autosave=True)
         u.int = 1
         u.float = 1.5
