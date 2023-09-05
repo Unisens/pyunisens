@@ -126,27 +126,24 @@ class Entry:
 
     def _autosave(self):
         """
-        if autosave is enabled, this function will call the autosave function
-        of parents until the uppermost Unisens object is reached and then
-        save when anything is changed.
+        This function will call the `_autosave` method of `_parents`.
+        If the uppermost `_parent` is a Unisens object changes will be saved
+         according to its attribute `_autosave_enabled`.
+        Otherwise nothing happens.
         """
-        try:
-            if self._parent is not None:
-                self._parent._autosave()
-        except:  # there might an error, then do nothing.
-            pass
+        if self._parent is not None:
+            self._parent._autosave()
 
     def _check_readonly(self):
         """
         will raise an exception if a write operation 
         is requested to readonly file
+        If available, the `_parent`'s writability is chosen over the instance's.
         """
-        if hasattr(self, '_parent') and self._parent is not None:
-            if isinstance(self._parent, str): return True
-            self._parent._check_readonly()
+        if hasattr(self, '_parent') and hasattr(self._parent, '_check_readonly'):
+            return self._parent._check_readonly()
         elif hasattr(self, '_readonly') and self._readonly:
             raise IOError(f'Read only, can\'t write to {self._folder}.')
-        return True
 
     # @profile
     def _get_index(self, id_or_name, raises=True):
@@ -244,12 +241,11 @@ class Entry:
             # this means there are channel names there but do not match n_data
             raise ValueError('Channel names must match data')
 
-    def copy(self):
+    def copy(self) -> Entry:
         """
-        Create a deep copy of this Entry.
-        
-        All references to the parent Unisens object will be removed before.
-        
+        Create a deep copy of this Entry without copying the parent.
+        `_parent` is set to None for the resulting copy.
+
         Returns
         -------
         copy : Entry
@@ -258,7 +254,7 @@ class Entry:
         """
         if hasattr(self, '_parent'):
             _parent = self._parent
-            del self._parent
+            self._parent = None
             copy = deepcopy(self)
             self._parent = _parent
         else:
