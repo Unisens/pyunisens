@@ -159,6 +159,8 @@ class Entry(ABC):
         for the entry in ._entry and returns its index as well as its
         key name in the __dict__
 
+        Caution: this is only returns the first entry's index when stacking
+
         Parameters
         ----------
         id_or_name : str
@@ -171,47 +173,38 @@ class Entry(ABC):
         [index in ._entries, key-name in __dict__].
         """
 
-        id_or_name = id_or_name.upper()
-        id_or_name_key = make_key(id_or_name)
+        id_or_name_key_upper = make_key(id_or_name).upper()
 
         # we don't care about case, gently ignoring Linux file case-sensitivity
         # first check for exact match
         for i, entry in enumerate(self._entries):
             if hasattr(entry, 'id'):
-                id = entry.id
-                id_key = make_key(id)
-                if id_or_name.upper() == id:
-                    return i, id_key  # check for exact match
-                if id_key.upper() == id_or_name_key:
+                id_key = make_key(entry.id)
+                if id_key.upper() == id_or_name_key_upper:
                     return i, id_key  # check for match in key notation
             else:
                 name = entry._name
                 name_key = make_key(name)
-                if name.upper() == id_or_name.upper():  # same as above
-                    return i, name
-                if name_key.upper() == id_or_name_key:
+                if name_key.upper() == id_or_name_key_upper:
                     return i, name
 
+        id_or_name_upper = id_or_name.upper()
         found = []
         for i, entry in enumerate(self._entries):
             if hasattr(entry, 'id'):
-                id = entry.id.replace('\\', '/').upper()  # normalize to linux-slash
-                no_ext = id.rsplit('.', 1)[0]  # remove file extension
+                id_upper = entry.id.upper()
+                no_ext = id_upper.rsplit('.', 1)[0]  # remove file extension
                 # check if file without extension was requested
                 # e.g. 'test' for test.txt
-                if no_ext == id_or_name:
+                if no_ext == id_or_name_upper:
                     found += [(i, make_key(entry.id))]
-                # contains a slash/subdir, so we need to trim that off
-                elif '/' in id:
+                elif '/' in id_upper or '\\' in id_upper:  # remove subdirectories
                     # e.g. 'test' was requested for 'sub/test.txt'
-                    if os.path.basename(no_ext) == id_or_name:
+                    if os.path.basename(no_ext) == id_or_name_upper:
                         found += [(i, make_key(entry.id))]
                     # e.g. 'test.txt' was requested for 'sub/test.txt'
-                    elif os.path.basename(id) == id_or_name:
+                    elif os.path.basename(id_upper) == id_or_name_upper:
                         found += [(i, make_key(entry.id))]
-                # no subdir, but full match
-                elif id == id_or_name:
-                    found += [(i, make_key(entry.id))]
 
         if len(found) == 1: return found[0]
         if len(found) > 1: raise IndexError(f'More than one match for {id_or_name}: {found}')
