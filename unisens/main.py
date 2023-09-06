@@ -50,7 +50,7 @@ class Unisens(Entry):
     """
 
     # @profile
-    def __init__(self, folder, makenew=False, autosave=False, readonly=False,
+    def __init__(self, folder: str, makenew=False, autosave=False, readonly=False,
                  comment: str = '', duration: int = 0, measurementId: str = 'NaN',
                  timestampStart='', filename='unisens.xml',
                  convert_nums=False):
@@ -75,7 +75,6 @@ class Unisens(Entry):
         self._folder = folder
         self._file = os.path.join(folder, filename)
         os.makedirs(folder, exist_ok=True)
-        folder = os.path.dirname(folder + '/')
 
         self.entries = AttrDict()
         self._entries = list()
@@ -136,7 +135,7 @@ class Unisens(Entry):
             self.save()
 
     # @profile
-    def add_entry(self, entry: Entry):
+    def add_entry(self, entry: Entry, stack=None):
         """
         Add a subentry to this unisens object, e.g ValueEntry, SignalEntry
         

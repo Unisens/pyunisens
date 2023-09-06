@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import importlib
 import os, sys
-from os.path import join
-from os import access
+from abc import ABC
+from typing import List, Tuple
+
 import numpy as np
 import logging
 from .utils import validkey, strip, lowercase, make_key, valid_filename, infer_dtype
@@ -34,7 +35,7 @@ def get_module(name):
     raise Exception(f'Cant load module {name}')
 
 
-class Entry:
+class Entry(ABC):
     """
     Base class for Unisens entries. All other entries inherit from this.
     
@@ -146,7 +147,7 @@ class Entry:
             raise IOError(f'Read only, can\'t write to {self._folder}.')
 
     # @profile
-    def _get_index(self, id_or_name, raises=True):
+    def _get_index(self, id_or_name, raises=True) -> Tuple[int, str]:
         """
         Receive the index and key-name of an object.
         
@@ -216,7 +217,18 @@ class Entry:
         if len(found) > 1: raise IndexError(f'More than one match for {id_or_name}: {found}')
         raise KeyError(f'{id_or_name} not found')
 
-    def _set_channels(self, ch_names, n_data):
+    def _set_channels(self, ch_names: List[str], n_data: int):
+        """
+        Checks existing channel attributes.
+        Overwrites channel attributes if ch_names are supplied.
+        Writes generic channel names if nothing is given.
+        → Use in set_data for classes requiring channel names.
+
+        :param ch_names: List of channel names (str) or single channel name as str or None
+        :param n_data: amount of required channel names
+            This might match lines / columns of data or
+            one less if an index is expected.
+        """
         if ch_names is not None:
             if isinstance(ch_names, str): ch_names = [ch_names]
             # this means new channel names are indicated and will overwrite.
@@ -288,32 +300,28 @@ class Entry:
         # there are several Entries that have reserved names.
         # these should not exist double, therefore they are re-set here
         reserved = ['binFileFormat', 'csvFileFormat', 'customFileFormat']
-        if entry._name in reserved:
-            stack = False
 
         name = entry.attrib.get('id', entry.__dict__['_name'])
 
-        if not stack:
+        if (not stack or entry._name in reserved):
             try:
                 self.remove_entry(name)
             except:
                 pass
-
-        self._entries.append(entry)
 
         # if an entry already exists with this exact name
         # we put the entry inside of a list and append the new entry
         # with the same name. This way all entries are saved
         name = make_key(name)
         if name in self.__dict__:
-            if isinstance(self.__dict__[name], list):
-                self.__dict__[name].append(entry)
-            else:
+            if not isinstance(self.__dict__[name], list):
                 self.__dict__[name] = [self.__dict__[name]]
-                self.__dict__[name].append(entry)
+            self.__dict__[name].append(entry)
         else:
             self.__dict__[name] = entry
-        entry.__dict__['_parent'] = self
+
+        self._entries.append(entry)
+        entry._parent = self
         self._autosave()
         return self
 

@@ -81,8 +81,9 @@ class Testing(unittest.TestCase):
     def test_entry_creation(self):
         folder = os.path.join(self.tmpdir, 'data', 'record2')
         for entrytype in [CustomEntry, ValuesEntry, SignalEntry, EventEntry]:
-            with self.assertRaises(ValueError):
-                entry = entrytype()
+            with self.assertRaises(ValueError) as e:
+                entrytype()
+            assert 'id must be supplied' in str(e.exception)
 
             entry = entrytype(parent=folder, id='test.csv')
             entry.set_attrib('key1', 'value1')
@@ -590,7 +591,10 @@ class Testing(unittest.TestCase):
 
         c = CustomEntry(id='test.bin', parent=folder)
         f = FileEntry('feat1.txt', parent=folder)
-        c.add_entry(f.copy())
+        d = f.copy()
+        assert d._parent is None
+        c.add_entry(d)
+        assert d._parent == c
         c.add_entry(f.copy())
         self.assertEqual(len(c), 2)
 
@@ -614,6 +618,7 @@ class Testing(unittest.TestCase):
         c.add_entry(f.copy().set_attrib('test2', 'val2'), stack=False)
         self.assertEqual(len(c), 1)
         self.assertEqual(c['test'].test2, 'val2')
+        assert not hasattr(c.test, 'test1')
 
     def test_indexfinding(self):
         """try whether the index finding method is working correctly"""
