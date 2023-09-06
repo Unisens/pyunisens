@@ -8,6 +8,7 @@ import os
 from unisens import CustomEntry, ValuesEntry, EventEntry, SignalEntry
 from unisens import MiscEntry, CustomAttributes, Unisens, FileEntry
 from unisens import CsvFileEntry
+from unisens import make_key
 
 import unittest
 import shutil
@@ -765,6 +766,24 @@ class Testing(unittest.TestCase):
         self.assertEqual(u1.entry.int, 1)
         self.assertEqual(u1.entry.float, 1.5)
         self.assertEqual(u1.entry.bool, True)
+
+    def test_remove_entry(self):
+        u = Unisens(self.tmpdir, makenew=True)
+        CustomEntry(id='custom.txt', parent=u)
+        SignalEntry(id='signal.bin', parent=u)
+        ValuesEntry(id='values.csv', parent=u)
+        for entry_name in ['custom.txt', 'signal.bin', 'values.csv']:
+            #assert hasattr(u, entry_name)
+            assert make_key(entry_name) in u.__dict__
+            e = u.entries[entry_name]
+            assert e in u._entries
+        del entry_name, e
+        for entry_name in ['signal.bin', 'values.csv', 'custom.txt']:
+            e = u.entries[entry_name]
+            u.remove_entry(entry_name)
+            assert make_key(entry_name) not in u.__dict__
+            assert entry_name not in u.entries
+            assert e not in u._entries
 
 
 if __name__ == '__main__':

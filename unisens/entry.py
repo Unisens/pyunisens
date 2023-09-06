@@ -318,7 +318,7 @@ class Entry:
         return self
 
     # @profile
-    def remove_entry(self, name):
+    def remove_entry(self, name: str):
         """
         Removes a subentry by name.
 
@@ -327,16 +327,10 @@ class Entry:
         name : str
             the name of the entry. 
             Can be abbreviated, e.g. 'samples' instead of 'samples.csv'.
-
         """
         i, key = self._get_index(name)
-        entry = self._entries[i]
         del self._entries[i]
         del self.__dict__[key]
-        # if this is an unisens object, also delete the referer there
-        if self.__dict__.get('entries') is not None:
-            for key, e in list(self.__dict__['entries'].items()):
-                if e == entry: del self.__dict__['entries'][key]
         return self
 
     # @profile

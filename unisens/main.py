@@ -151,6 +151,16 @@ class Unisens(Entry):
         super().add_entry(entry, stack=False)
         return self
 
+    def remove_entry(self, name: str):
+        i, key = self._get_index(name)
+        entry = self._entries[i]
+        for e_name, e in list(self.entries.items()):
+            if e == entry:
+                del self.entries[e_name]
+        del self._entries[i]
+        del self.__dict__[key]
+        return self
+
     # @profile
     def unpack_element(self, element: (Element, ET)) -> Entry:
         """
