@@ -31,8 +31,7 @@ def get_module(name):
         return module
     except ModuleNotFoundError:
         print(f'{name} is not installed. Install with pip install {name}')
-        return False
-    raise Exception(f'Cant load module {name}')
+        raise Exception(f'Cant load module {name}')
 
 
 class Entry(ABC):
@@ -147,7 +146,7 @@ class Entry(ABC):
             raise IOError(f'Read only, can\'t write to {self._folder}.')
 
     # @profile
-    def _get_index(self, id_or_name, raises=True) -> Tuple[int, str]:
+    def _get_index(self, id_or_name: str, raises: bool = True) -> Tuple[int, str]:
         """
         Receive the index and key-name of an object.
         
@@ -159,18 +158,15 @@ class Entry(ABC):
         for the entry in ._entry and returns its index as well as its
         key name in the __dict__
 
-        Caution: this is only returns the first entry's index when stacking
+        Caution: this only returns the first entry's index in _entries when stacking
 
-        Parameters
-        ----------
-        id_or_name : str
+        :param id_or_name: str
             The name or id of the Entry.
-        raises : bool, optional
+        :param raises: bool, optional
             Raise an exception if not found. The default is True.
-
-        Returns
-        -------
-        [index in ._entries, key-name in __dict__].
+        :return:
+            i: int, index in ._entries
+            key: str, key-name in __dict__, not id/_name in entry
         """
 
         id_or_name_key_upper = make_key(id_or_name).upper()
@@ -295,18 +291,17 @@ class Entry(ABC):
         reserved = ['binFileFormat', 'csvFileFormat', 'customFileFormat']
 
         name = entry.attrib.get('id', entry.__dict__['_name'])
+        name = make_key(name)
 
         if (not stack or entry._name in reserved):
+            # remove old entry with this name if necessary
             try:
                 self.remove_entry(name)
-            except:
+            except KeyError:
                 pass
 
-        # if an entry already exists with this exact name
-        # we put the entry inside of a list and append the new entry
-        # with the same name. This way all entries are saved
-        name = make_key(name)
         if name in self.__dict__:
+            # stack entries with the same name inside a list
             if not isinstance(self.__dict__[name], list):
                 self.__dict__[name] = [self.__dict__[name]]
             self.__dict__[name].append(entry)
@@ -352,7 +347,7 @@ class Entry(ABC):
         self._autosave()
         return self
 
-    def get_attrib(self, name: str, default=None):
+    def get_attrib(self, name: str, default=None) -> str:
         """
         Retrieves an attribute of this Entry
 
@@ -517,7 +512,7 @@ class SignalEntry(FileEntry):
         Parameters
         ----------
         data : np.ndarray
-            an numpy array.
+            in lines! len(self.channel) == len(data)
         dataType : str, optional
             The data type of the data. If None, is infered automatically.
             Can be 'DOUBLE', 'FLOAT', 'INT16', 'INT32', 
