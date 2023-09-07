@@ -58,7 +58,7 @@ class Entry(ABC):
         return len(self._entries)
 
     def __iter__(self):
-        return list(self._entries).__iter__()
+        return self._entries.__iter__()
 
     def __repr__(self):
         return "<{}({})>".format(self._name, self.attrib)
@@ -343,7 +343,7 @@ class Entry(ABC):
         """
         name = validkey(name)
         self.attrib[name] = value
-        self.__dict__.update(self.attrib)
+        self.__dict__.update({name: value})
         self._autosave()
         return self
 
