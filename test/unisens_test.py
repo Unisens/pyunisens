@@ -7,7 +7,7 @@ Created on Sat Jan  4 16:37:07 2020
 import os
 from unisens import CustomEntry, ValuesEntry, EventEntry, SignalEntry
 from unisens import MiscEntry, CustomAttributes, Unisens, FileEntry
-from unisens import CsvFileEntry
+from unisens import make_key
 
 import unittest
 import shutil
@@ -325,11 +325,13 @@ class Testing(unittest.TestCase):
         self.assertEqual(data.size, 1817200)
         self.assertEqual(data.min(), 1)
         self.assertEqual(data.max(), 32767)
-        data = signal.get_data(scaled=False)
+        assert 'baseline' not in signal.attrib
+        signal.set_attrib('baseline', 5)
+        data = signal.get_data()
         self.assertEqual(len(data), 2)
         self.assertEqual(data.size, 1817200)
-        self.assertEqual(data.min(), 1)
-        self.assertEqual(data.max(), 32767)
+        self.assertEqual(data.min(), -4)
+        self.assertEqual(data.max(), 32762)
 
         signal = u['ecg200.bin']
         data = signal.get_data()
@@ -337,7 +339,9 @@ class Testing(unittest.TestCase):
         self.assertEqual(data.size, 2725800)
         self.assertEqual(data.min(), -0.083329024)
         self.assertEqual(data.max(), 0.08332648100000001)
-        data = signal.get_data(scaled=False)
+        assert signal.lsbValue == '2.543E-6'
+        signal.set_attrib('lsbValue', '1')
+        data = signal.get_data()
         self.assertEqual(data.size, 2725800)
         self.assertEqual(data.min(), -32768)
         self.assertEqual(data.max(), 32767)
