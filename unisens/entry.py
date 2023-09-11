@@ -68,7 +68,7 @@ class Entry:
 
         if attrib is None:
             attrib = dict()
-        self.__dict__['attrib'] = attrib
+        self.__dict__['attrib'] = deepcopy(attrib)
         self.__dict__.update(self.attrib)
         self.__dict__['_entries'] = []
         self.__dict__['_folder'] = parent.__dict__['_folder'] if isinstance(parent, Entry) else parent
