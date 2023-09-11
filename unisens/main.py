@@ -84,7 +84,7 @@ class Unisens(Entry):
 
         if os.path.isfile(self._file) and not makenew:
             logging.debug('loading unisens.xml from {}'.format(self._file))
-            self.read_unisens(folder, filename=filename)
+            self._read_unisens()
         else:
             logging.debug('New unisens.xml will be created at {}'.format(self._file))
             if not timestampStart:
@@ -229,25 +229,19 @@ class Unisens(Entry):
         return self
 
     # @profile
-    def read_unisens(self, folder: str, filename='unisens.xml') -> Entry:
+    def _read_unisens(self):
         """
         Loads an XML Unisens file into this Unisens object.
         That means, self.attrib and self.children are added
         as well as tag, tail and text
-        
-        :param folder: folder where the unisens.xml is located.
-        :param filename: usually 'unisens.xml'
-        :returns: self
         """
-        folder += '/'  # to avoid any ospath errors and confusion, append /
-        file = os.path.join(os.path.dirname(folder), filename)
-        if not os.path.isfile(file):
-            raise FileNotFoundError('{} does not exist'.format(folder))
+        if not os.path.isfile(self._file):
+            raise FileNotFoundError('{} does not exist'.format(self._file))
 
         try:
-            root = ET.parse(file).getroot()
+            root = ET.parse(self._file).getroot()
         except Exception as e:
-            print('Error reading {}'.format(file))
+            print('Error reading {}'.format(self._file))
             raise e
 
         # copy all attributes from root to this Unisens object
@@ -272,4 +266,4 @@ class Unisens(Entry):
         entries = zip(keys, self.entries.values())
         self.__dict__.update(entries)
 
-        return self
+        return
