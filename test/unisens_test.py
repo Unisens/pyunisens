@@ -7,7 +7,6 @@ Created on Sat Jan  4 16:37:07 2020
 import os
 from unisens import CustomEntry, ValuesEntry, EventEntry, SignalEntry
 from unisens import MiscEntry, CustomAttributes, Unisens, FileEntry
-from unisens import CsvFileEntry
 from unisens import make_key
 
 import unittest
@@ -329,11 +328,13 @@ class Testing(unittest.TestCase):
         self.assertEqual(data.size, 1817200)
         self.assertEqual(data.min(), 1)
         self.assertEqual(data.max(), 32767)
-        data = signal.get_data(scaled=False)
+        assert 'baseline' not in signal.attrib
+        signal.set_attrib('baseline', 5)
+        data = signal.get_data()
         self.assertEqual(len(data), 2)
         self.assertEqual(data.size, 1817200)
-        self.assertEqual(data.min(), 1)
-        self.assertEqual(data.max(), 32767)
+        self.assertEqual(data.min(), -4)
+        self.assertEqual(data.max(), 32762)
 
         signal = u['ecg200.bin']
         data = signal.get_data()
@@ -341,7 +342,9 @@ class Testing(unittest.TestCase):
         self.assertEqual(data.size, 2725800)
         self.assertEqual(data.min(), -0.083329024)
         self.assertEqual(data.max(), 0.08332648100000001)
-        data = signal.get_data(scaled=False)
+        assert signal.lsbValue == '2.543E-6'
+        signal.set_attrib('lsbValue', '1')
+        data = signal.get_data()
         self.assertEqual(data.size, 2725800)
         self.assertEqual(data.min(), -32768)
         self.assertEqual(data.max(), 32767)
@@ -789,6 +792,43 @@ class Testing(unittest.TestCase):
             assert make_key(entry_name) not in u.__dict__
             assert entry_name not in u.entries
             assert e not in u._entries
+
+    def test_write_signal_entry(self):
+        unisens = Unisens(os.path.join(os.path.dirname(__file__), 'Example_003'))
+
+        signal = unisens.acc_textile_50_bin
+        original_data = signal.get_data()
+        data = original_data[:, :48]
+
+        from copy import copy
+        kwargs: dict = copy(signal.attrib)
+        original_sample_rate = kwargs.pop('sampleRate', None)
+        kwargs['sampleRate'] = float(1/3600)
+        kwargs.pop('id', None)
+        ch_names = ['tick', 'trick', 'track']
+
+        for ending in ['.csv', '.bin']:
+            name = 'test_signal' + ending
+            for f in ['a_', 'b_', 'c_']:
+                file = f+name
+                if hasattr(unisens, file):
+                    unisens.remove_entry(file)
+
+            kwargs.update({'dataType': 'int16', 'lsbValue': '0.00294', 'baseline': '2048'})
+            s = SignalEntry(id='a_'+name, parent=unisens)
+            s.set_data(data, ch_names=ch_names, **kwargs)
+            data_return = s.get_data()
+            assert np.all(data == data_return)
+            kwargs.update({'dataType': 'float64', 'lsbValue': 1, 'baseline': '0'})
+            s2 = SignalEntry(id='b_'+name, parent=unisens, **kwargs)
+            s2.set_data(data, ch_names=ch_names)
+            data_return2 = s2.get_data()
+            assert np.all(data == data_return2)
+            kwargs.update({'dataType': 'uint16', 'lsbValue': '0.00098', 'baseline': '6426'})
+            s3 = SignalEntry(id='c_'+name, parent=unisens, attrib=kwargs)
+            s3.set_data(data, ch_names=ch_names)
+            data_return3 = s3.get_data()
+            assert np.all(data == data_return3)
 
 
 if __name__ == '__main__':

@@ -68,14 +68,14 @@ class Entry(ABC):
 
         if attrib is None:
             attrib = dict()
-        self.__dict__['attrib'] = attrib
+        self.__dict__['attrib'] = deepcopy(attrib)
         self.__dict__.update(self.attrib)
         self.__dict__['_entries'] = []
         self.__dict__['_folder'] = parent.__dict__['_folder'] if isinstance(parent, Entry) else parent
         self.__dict__['_parent'] = parent if isinstance(parent, Entry) else None
         self.__dict__['_name'] = lowercase(type(self).__name__)
         for key in kwargs:
-            self.key = kwargs[key]
+            self.set_attrib(key, kwargs[key])
         self._autosave()
 
     # @profile
@@ -467,7 +467,7 @@ class SignalEntry(FileEntry):
     def __init__(self, id=None, attrib=None, parent='.', **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
 
-    def get_data(self, scaled: bool = True, return_type: str = 'numpy') -> np.array:
+    def get_data(self) -> np.array:
         """
         Will try to load the binary data using numpy.
         This might not always work as endianess can't be determined
@@ -486,22 +486,29 @@ class SignalEntry(FileEntry):
 
         """
 
+        if self.id.endswith('csv'):
+            data = np.genfromtxt(self._filename, dtype=str, delimiter=self.csvFileFormat.separator)
+            data = data.astype(float)
+            return data.T
+
+        assert self.id.endswith('bin') and 'lsbValue' in dir(self), \
+            'incompatible id: SignalEntry only allows for .bin or .csv format'
         n_channels = len(self.channel) if isinstance(self.channel, list) else 1
         dtypestr = self.dataType.lower()
         dtype = np.__dict__.get(dtypestr, f'UNKOWN_DATATYPE: {dtypestr}')
         data = np.fromfile(self._filename, dtype=dtype)
-        if scaled:
-            if 'baseline' in dir(self):
-                data = ((data - float(self.baseline)) * float(self.lsbValue))
-            else:
-                data = (data * float(self.lsbValue))
+        if 'baseline' in self.attrib:
+            data = ((data - float(self.baseline)) * float(self.lsbValue))
+        elif self.lsbValue != 1:
+            data = (data * float(self.lsbValue))
         return data.reshape([-1, n_channels]).T
 
-    def set_data(self, data: np.ndarray, sampleRate: float, dataType: str = None,
+    def set_data(self, data: np.ndarray, sampleRate: float = None, dataType: str = None,
                  ch_names: list = None, unit: str = None,
-                 lsbValue: float = 1, adcZero: int = None,
+                 lsbValue: float = None, adcZero: int = None,
                  adcResolution: int = None, baseline: int = None,
                  comment: str = None, contentClass: str = None,
+                 source: str = None, sourceId: str = None,
                  decimalSeparator: str = '.', separator: str = ';', **kwargs):
         """
         Set the data that is connected to this SignalEntry.
@@ -542,8 +549,18 @@ class SignalEntry(FileEntry):
 
         data = np.atleast_2d(np.array(data))
         if dataType is None:
-            dataType = str(data.dtype).upper()
-        dataType = infer_dtype(dataType)
+            if 'dataType' in self.attrib:
+                dataType = self.dataType
+            else:
+                dataType = str(data.dtype)
+        self.set_attrib('dataType', infer_dtype(dataType).lower())
+
+        if lsbValue is not None:
+            self.set_attrib('lsbValue', lsbValue)
+        elif 'lsbValue' not in self.attrib:
+            self.set_attrib('lsbValue', 1)
+        if baseline is not None:
+            self.set_attrib('baseline', baseline)
 
         if self.id.endswith('csv'):
             fileFormat = MiscEntry('csvFileFormat', parent=self)
@@ -551,29 +568,40 @@ class SignalEntry(FileEntry):
             fileFormat.set_attrib('separator', separator)
             self.add_entry(fileFormat)
 
-            write_csv(self._filename, data, sep=self.csvFileFormat.separator,
+            write_csv(self._filename, data.T, sep=self.csvFileFormat.separator,
                       decimal_sep=self.csvFileFormat.decimalSeparator)
         elif self.id.endswith('bin'):
             order = sys.byteorder.upper()  # endianess
             fileFormat = MiscEntry('binFileFormat', key='endianess', value=order)
             self.add_entry(fileFormat)
 
+            if 'baseline' in self.attrib:
+                data = (data / float(self.lsbValue)) + float(self.baseline)
+            elif self.lsbValue != 1:
+                data = data / float(self.lsbValue)
+
+            if 'int' in dataType:
+                data = np.round(data, 10)
+            data_formatted = data.astype(dataType)
+            assert abs(np.sum(data-data_formatted)) < 1e-10, \
+                f"Can't format to dataType {dataType} without loss."
+
             # save data transposed because unisens reads rows*columns not columns*rows like numpy
-            data.T.tofile(self._filename)
+            data_formatted.T.tofile(self._filename)
         else:
             raise ValueError('incompatible id: SignalEntry only allows for .bin or .csv format')
 
         self._set_channels(ch_names, n_data=len(data))
 
-        if baseline is not None: self.set_attrib('baseline', baseline)
         if sampleRate is not None: self.set_attrib('sampleRate', sampleRate)
-        if lsbValue is not None: self.set_attrib('lsbValue', lsbValue)
+        assert 'sampleRate' in self.attrib, "Please specify sampleRate for correct visualization."
         if unit is not None: self.set_attrib('unit', unit)
         if comment is not None: self.set_attrib('comment', comment)
         if contentClass is not None: self.set_attrib('contentClass', contentClass)
-        self.set_attrib('dataType', dataType.lower())
         if adcZero is not None: self.set_attrib('adcZero', adcZero)
         if adcResolution is not None: self.set_attrib('adcResolution', adcResolution)
+        if source is not None: self.set_attrib('source', source)
+        if sourceId is not None: self.set_attrib('sourceId', sourceId)
 
         # set all other keyword arguments/comments as well.
         for key in kwargs:
