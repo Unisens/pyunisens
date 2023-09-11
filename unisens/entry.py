@@ -75,7 +75,7 @@ class Entry:
         self.__dict__['_parent'] = parent if isinstance(parent, Entry) else None
         self.__dict__['_name'] = lowercase(type(self).__name__)
         for key in kwargs:
-            self.key = kwargs[key]
+            self.set_attrib(key, kwargs[key])
         self._autosave()
 
     # @profile
