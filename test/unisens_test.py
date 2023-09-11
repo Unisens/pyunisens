@@ -793,17 +793,20 @@ class Testing(unittest.TestCase):
                 if hasattr(unisens, file):
                     unisens.remove_entry(file)
 
+            kwargs.update({'dataType': 'int16', 'lsbValue': '0.00294', 'baseline': '2048'})
             s = SignalEntry(id='a_'+name, parent=unisens)
             s.set_data(data, ch_names=ch_names, **kwargs)
             data_return = s.get_data()
             assert np.all(data == data_return)
+            kwargs.update({'dataType': 'float64', 'lsbValue': 1, 'baseline': '0'})
             s2 = SignalEntry(id='b_'+name, parent=unisens, **kwargs)
             s2.set_data(data, ch_names=ch_names)
-            data_return2 = s.get_data()
+            data_return2 = s2.get_data()
             assert np.all(data == data_return2)
+            kwargs.update({'dataType': 'uint16', 'lsbValue': '0.00098', 'baseline': '6426'})
             s3 = SignalEntry(id='c_'+name, parent=unisens, attrib=kwargs)
             s3.set_data(data, ch_names=ch_names)
-            data_return3 = s.get_data()
+            data_return3 = s3.get_data()
             assert np.all(data == data_return3)
 
 
