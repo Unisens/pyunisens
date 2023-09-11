@@ -131,6 +131,7 @@ class Entry(ABC):
          according to its attribute `_autosave_enabled`.
         Otherwise nothing happens.
         """
+        # not in Java version available
         if self._parent is not None:
             self._parent._autosave()
 
@@ -140,6 +141,7 @@ class Entry(ABC):
         is requested to readonly file
         If available, the `_parent`'s writability is chosen over the instance's.
         """
+        # not in Java version available
         if hasattr(self, '_parent') and hasattr(self._parent, '_check_readonly'):
             return self._parent._check_readonly()
         elif hasattr(self, '_readonly') and self._readonly:
@@ -253,6 +255,7 @@ class Entry(ABC):
             An Entry object with all attributes as the invoking object.
 
         """
+        # in Java: clone when adding entry
         if hasattr(self, '_parent'):
             _parent = self._parent
             self._parent = None
@@ -893,24 +896,25 @@ class CustomAttributes(Entry):
         element = Element(self._name, attrib={})
         element.tail = '\n  \n  \n  '
         element.text = '\n'
-        for key in self.attrib:
-            customAttribute = MiscEntry(name='customAttribute')
-            customAttribute.key = key
-            customAttribute.value = self.attrib[key]
-            subelement = customAttribute.to_element()
+        for key, value in self.attrib.items():
+            subelement = Element('customAttribute', key=key, value=str(value))
             element.append(subelement)
         return element
 
-    def add_entry(self, entry: MiscEntry):
-        if entry._name != 'customAttribute':
-            logging.error('Can only add customAttribute type')
-            return
+    def add_entry(self, entry: CustomAttribute):
+        """ When reading the unisens.xml file, each CustomAttribute is an entry (i.e. subelement)
+        to CustomAttributes and only contains key and value.
+        In contrast, pyunisens will save a CustomAttribute as attribute to CustomAttributes"""
+        assert entry._name == 'customAttribute', 'Can only add customAttribute type'
         self.set_attrib(entry.key, entry.value)
         self._autosave()
 
 
 class MiscEntry(Entry):
     def __init__(self, name: str, key: str = None, value: str = None, **kwargs):
+        """ For various smaller types of entries. The `name` describes the type and can be
+        ['channel', 'context', 'customAttribute', 'group', 'groupEntry',
+        'binFileFormat', 'csvFileFormat', 'customFileFormat']"""
         super().__init__(**kwargs)
         self._name = strip(name)
         if key and value:
@@ -919,5 +923,7 @@ class MiscEntry(Entry):
 
 
 class CustomAttribute(MiscEntry):
+    """dummy class for reading from unisens.xml.
+    An actual CustomAttribute is stored as attribute to CustomAttributes not as entry."""
     def __new__(*args, **kwargs):
-        return MiscEntry('customAttribute', **kwargs)
+        return MiscEntry('customAttribute', *args, **kwargs)

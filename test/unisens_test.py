@@ -585,8 +585,9 @@ class Testing(unittest.TestCase):
         self.assertEqual(u2['test1'].get_data(), 'asd')
         self.assertEqual(u1['test2'].get_data(), 'qwerty')
 
-        with self.assertRaises(KeyError):
+        with self.assertRaises(KeyError) as e:
             u2['test2']
+        assert 'test2' in str(e.exception)
 
     def test_nostacking(self):
         """this is not officially supported, but useful"""

@@ -284,6 +284,13 @@ def strip(string):
 
 
 def infer_dtype(dataType: str) -> str:
+    """
+    Mapping python / numpy data type to universal / java data type for compatibility
+
+    :param dataType: str with numpy dtype or universal data type
+    :return: dataType: uppercase str of universal data type
+    """
+
     dataType = dataType.upper()
     dtype_mapping = {'FLOAT16': 'FLOAT',
                      'FLOAT32': 'FLOAT',
