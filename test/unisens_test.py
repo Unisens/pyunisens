@@ -768,6 +768,40 @@ class Testing(unittest.TestCase):
         self.assertEqual(u1.entry.float, 1.5)
         self.assertEqual(u1.entry.bool, True)
 
+    def test_write_signal_entry(self):
+        unisens = Unisens(os.path.join(os.path.dirname(__file__), 'Example_003'))
+
+        signal = unisens.acc_textile_50_bin
+        original_data = signal.get_data()
+        data = original_data[:, :48]
+
+        from copy import copy
+        kwargs: dict = copy(signal.attrib)
+        original_sample_rate = kwargs.pop('sampleRate', None)
+        kwargs['sampleRate'] = float(1/3600)
+        kwargs.pop('id', None)
+        ch_names = ['tick', 'trick', 'track']
+
+        for ending in ['.csv', '.bin']:
+            name = 'test_signal' + ending
+            for f in ['a_', 'b_', 'c_']:
+                file = f+name
+                if hasattr(unisens, file):
+                    unisens.remove_entry(file)
+
+            s = SignalEntry(id='a_'+name, parent=unisens)
+            s.set_data(data, ch_names=ch_names, **kwargs)
+            data_return = s.get_data()
+            assert np.all(data == data_return)
+            s2 = SignalEntry(id='b_'+name, parent=unisens, **kwargs)
+            s2.set_data(data, ch_names=ch_names)
+            data_return2 = s.get_data()
+            assert np.all(data == data_return2)
+            s3 = SignalEntry(id='c_'+name, parent=unisens, attrib=kwargs)
+            s3.set_data(data, ch_names=ch_names)
+            data_return3 = s.get_data()
+            assert np.all(data == data_return3)
+
 
 if __name__ == '__main__':
     unittest.main()
