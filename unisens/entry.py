@@ -595,8 +595,13 @@ class SignalEntry(FileEntry):
                 data = (data / float(self.lsbValue)) + float(self.baseline)
             elif self.lsbValue != 1:
                 data = data / float(self.lsbValue)
+
+            if 'int' in dataType:
+                data = np.round(data, 10)
             data_formatted = data.astype(dataType)
-            assert np.all(data_formatted == data), f"Can't format to dataType {dataType} without loss."
+            assert abs(np.sum(data-data_formatted)) < 1e-10, \
+                f"Can't format to dataType {dataType} without loss."
+
             # save data transposed because unisens reads rows*columns not columns*rows like numpy
             data_formatted.T.tofile(self._filename)
         else:
