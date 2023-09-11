@@ -72,9 +72,9 @@ class Unisens(Entry):
         assert autosave != readonly or not autosave and not readonly, \
             'either read-only or autosave can be enabled'
         assert isinstance(folder, str), f'folder must be string, is {folder}'
-        self._folder = folder
-        self._file = os.path.join(folder, filename)
-        os.makedirs(folder, exist_ok=True)
+        self._folder = os.path.normpath(folder)
+        self._file = os.path.join(self._folder, filename)
+        os.makedirs(self._folder, exist_ok=True)
 
         self.entries = AttrDict()
         self._entries = list()
