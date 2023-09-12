@@ -1,23 +1,28 @@
 # -*- coding: utf-8 -*-
 """
-Created on Mon Jan  6 21:16:58 2020
+Created on Mon Jan 6 21:16:58 2020
 
 @author: skjerns
 """
+from __future__ import annotations
+
 import importlib
 import os, sys
 from os.path import join
 from os import access
 import numpy as np
 import logging
-from .utils import validkey, strip, lowercase, make_key, valid_filename
+from .utils import validkey, strip, lowercase, make_key, valid_filename, infer_dtype
 from .utils import read_csv, write_csv
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
 from copy import deepcopy
 
-try: profile #a hack for not having to remove the profile tags when not testing
-except NameError: profile = lambda x: x   # pass-through decorator
+try:
+    profile  # a hack for not having to remove the profile tags when not testing
+except NameError:
+    profile = lambda x: x  # pass-through decorator
+
 
 def get_module(name):
     try:
@@ -27,9 +32,9 @@ def get_module(name):
         print(f'{name} is not installed. Install with pip install {name}')
         return False
     raise Exception(f'Cant load module {name}')
-    
 
-class Entry():
+
+class Entry:
     """
     Base class for Unisens entries. All other entries inherit from this.
     
@@ -48,7 +53,6 @@ class Entry():
     **kwargs : TYPE
         DESCRIPTION.
     """
-    
 
     def __len__(self):
         return len(self._entries)
@@ -58,20 +62,20 @@ class Entry():
 
     def __repr__(self):
         return "<{}({})>".format(self._name, self.attrib)
- 
+
     # @profile
     def __init__(self, attrib=None, parent='.', **kwargs):
 
         if attrib is None:
-            attrib=dict()
-        self.__dict__['attrib'] = attrib
+            attrib = dict()
+        self.__dict__['attrib'] = deepcopy(attrib)
         self.__dict__.update(self.attrib)
         self.__dict__['_entries'] = []
         self.__dict__['_folder'] = parent.__dict__['_folder'] if isinstance(parent, Entry) else parent
         self.__dict__['_parent'] = parent if isinstance(parent, Entry) else None
         self.__dict__['_name'] = lowercase(type(self).__name__)
         for key in kwargs:
-            self.key = kwargs[key]
+            self.set_attrib(key, kwargs[key])
         self._autosave()
 
     # @profile
@@ -85,7 +89,7 @@ class Entry():
             return False
 
     # @profile
-    def __setattr__(self, name:str, value:str):
+    def __setattr__(self, name: str, value: str):
         """
         Allows settings of attributes via .name = value.
         """
@@ -93,22 +97,23 @@ class Entry():
         if name.startswith('_'): return
         methods = dir(type(self))
         # do not overwrite if it's a builtin method
-        if name not in methods and   \
-            isinstance(value, (int, float, bool, bytes, str)):
+        if name not in methods and \
+                isinstance(value, (int, float, bool, bytes, str)):
             self.set_attrib(name, value)
 
     # @profile
     def __getattr__(self, key):
         if key == "__setstate__":
             raise AttributeError(key)
-        try: return self.__dict__[key]
-        except: pass
+        try:
+            return self.__dict__[key]
+        except:
+            pass
         try:
             i, key2 = self._get_index(key)
             return self.__dict__[key2]
-        except KeyError:  
+        except KeyError:
             return self.__getattribute__(key)
-        raise AttributeError(f'{key} not found')
 
     # @profile
     def __getitem__(self, key):
@@ -128,7 +133,7 @@ class Entry():
         try:
             if self._parent is not None:
                 self._parent._autosave()
-        except: # there might an error, then do nothing.
+        except:  # there might an error, then do nothing.
             pass
 
     def _check_readonly(self):
@@ -139,9 +144,8 @@ class Entry():
         if hasattr(self, '_parent') and self._parent is not None:
             if isinstance(self._parent, str): return True
             self._parent._check_readonly()
-        elif hasattr(self, '_readonly'):
-            if self._readonly:
-                raise IOError(f'Read only, can\'t write to {self._folder}.')
+        elif hasattr(self, '_readonly') and self._readonly:
+            raise IOError(f'Read only, can\'t write to {self._folder}.')
         return True
 
     # @profile
@@ -168,55 +172,78 @@ class Entry():
         -------
         [index in ._entries, key-name in __dict__].
         """
-        
+
         id_or_name = id_or_name.upper()
         id_or_name_key = make_key(id_or_name)
-        
+
         # we don't care about case, gently ignoring Linux file case-sensitivity
         # first check for exact match
         for i, entry in enumerate(self._entries):
             if hasattr(entry, 'id'):
                 id = entry.id
                 id_key = make_key(id)
-                if id_or_name.upper()==id:   
-                    return i, id_key # check for exact match
-                if id_key.upper()==id_or_name_key: 
-                    return i, id_key # check for match in key notation
+                if id_or_name.upper() == id:
+                    return i, id_key  # check for exact match
+                if id_key.upper() == id_or_name_key:
+                    return i, id_key  # check for match in key notation
             else:
                 name = entry._name
                 name_key = make_key(name)
-                if name.upper()==id_or_name.upper(): # same as above
+                if name.upper() == id_or_name.upper():  # same as above
                     return i, name
-                if name_key.upper()==id_or_name_key: 
+                if name_key.upper() == id_or_name_key:
                     return i, name
 
         found = []
         for i, entry in enumerate(self._entries):
             if hasattr(entry, 'id'):
-                id = entry.id.replace('\\', '/').upper() # normalize to linux-slash
-                no_ext = id.rsplit('.', 1)[0] # remove file extension
+                id = entry.id.replace('\\', '/').upper()  # normalize to linux-slash
+                no_ext = id.rsplit('.', 1)[0]  # remove file extension
                 # check if file without extension was requested
                 # e.g. 'test' for test.txt
-                if no_ext==id_or_name:
-                    found+=[(i, make_key(entry.id))]
+                if no_ext == id_or_name:
+                    found += [(i, make_key(entry.id))]
                 # contains a slash/subdir, so we need to trim that off
                 elif '/' in id:
                     # e.g. 'test' was requested for 'sub/test.txt'
-                    if os.path.basename(no_ext)==id_or_name:
-                        found+=[(i, make_key(entry.id))]
+                    if os.path.basename(no_ext) == id_or_name:
+                        found += [(i, make_key(entry.id))]
                     # e.g. 'test.txt' was requested for 'sub/test.txt'
-                    elif os.path.basename(id)==id_or_name:
-                        found+=[(i, make_key(entry.id))]
+                    elif os.path.basename(id) == id_or_name:
+                        found += [(i, make_key(entry.id))]
                 # no subdir, but full match
-                elif id==id_or_name:
-                    found+=[(i, make_key(entry.id))]
+                elif id == id_or_name:
+                    found += [(i, make_key(entry.id))]
 
-
-
-        if len(found)==1: return found[0]
-        if len(found)>1: raise IndexError(f'More than one match for {id_or_name}: {found}')
+        if len(found) == 1: return found[0]
+        if len(found) > 1: raise IndexError(f'More than one match for {id_or_name}: {found}')
         raise KeyError(f'{id_or_name} not found')
-        
+
+    def _set_channels(self, ch_names, n_data):
+        if ch_names is not None:
+            if isinstance(ch_names, str): ch_names = [ch_names]
+            # this means new channel names are indicated and will overwrite.
+            assert len(ch_names) == n_data, f'len {ch_names}!={n_data}'
+            if hasattr(self, 'channel'):
+                logging.warning('Channels present will be overwritten')
+                self.remove_entry('channel')
+            for name in ch_names:
+                channel = MiscEntry('channel', key='name', value=name)
+                self.add_entry(channel)
+        elif not hasattr(self, 'channel'):
+            # this means no channel names are indicated and none exist
+            # we create new generic names for the channels
+            logging.info('No channel names indicated, will use generic names')
+            for i in range(n_data):
+                channel = MiscEntry('channel', key='name', value=f'ch_{i}')
+                self.add_entry(channel)
+        elif len(self.channel) == n_data:
+            # this means channel information is present and matches array
+            pass
+        else:
+            # this means there are channel names there but do not match n_data
+            raise ValueError('Channel names must match data')
+
     def copy(self):
         """
         Create a deep copy of this Entry.
@@ -239,7 +266,7 @@ class Entry():
         return copy
 
     # @profile
-    def add_entry(self, entry:'Entry', stack:bool=True):
+    def add_entry(self, entry: Entry, stack: bool = True):
         """
         Add an subentry to this entry
         
@@ -265,17 +292,19 @@ class Entry():
         # there are several Entries that have reserved names.
         # these should not exist double, therefore they are re-set here
         reserved = ['binFileFormat', 'csvFileFormat', 'customFileFormat']
-        if entry._name in reserved: 
-            stack=False
-        
+        if entry._name in reserved:
+            stack = False
+
         name = entry.attrib.get('id', entry.__dict__['_name'])
-        
+
         if not stack:
-            try: self.remove_entry(name)
-            except: pass
-        
+            try:
+                self.remove_entry(name)
+            except:
+                pass
+
         self._entries.append(entry)
-                
+
         # if an entry already exists with this exact name
         # we put the entry inside of a list and append the new entry
         # with the same name. This way all entries are saved
@@ -291,11 +320,11 @@ class Entry():
         entry.__dict__['_parent'] = self
         self._autosave()
         return self
-    
+
     # @profile
     def remove_entry(self, name):
         """
-        Removes an subentry by name.
+        Removes a subentry by name.
 
         Parameters
         ----------
@@ -311,11 +340,11 @@ class Entry():
         # if this is an unisens object, also delete the referer there
         if self.__dict__.get('entries') is not None:
             for key, e in list(self.__dict__['entries'].items()):
-                if e==entry: del self.__dict__['entries'][key]
+                if e == entry: del self.__dict__['entries'][key]
         return self
 
     # @profile
-    def set_attrib(self, name:str, value:str):
+    def set_attrib(self, name: str, value: str):
         """
         Set an attribute of this Entry
 
@@ -332,7 +361,7 @@ class Entry():
         self._autosave()
         return self
 
-    def get_attrib(self, name:str, default=None):
+    def get_attrib(self, name: str, default=None):
         """
         Retrieves an attribute of this Entry
 
@@ -347,7 +376,7 @@ class Entry():
 
         return self.attrib.get(name, default)
 
-    def remove_attr(self, name:str):
+    def remove_attr(self, name: str):
         """
         Removes a custom attribute/value of this entry.
 
@@ -361,14 +390,14 @@ class Entry():
         TYPE
             DESCRIPTION.
         """
-        if name in self.attrib: 
+        if name in self.attrib:
             del self.attrib[name]
             del self.__dict__[name]
         else:
             logging.error('{} not in attrib'.format(name))
         self._autosave()
-        return self           
-        
+        return self
+
     def to_element(self):
         """
         Converts this Entry and all its subentries into an XML Element.
@@ -387,7 +416,7 @@ class Entry():
         for subelement in self._entries:
             element.append(subelement.to_element())
         return element
-    
+
     def to_xml(self):
         """
         Creates a string representing this Entry and all its sub-entries
@@ -399,17 +428,18 @@ class Entry():
             XML string representing this Entry instance.
 
         """
-        
+
         element = self.to_element()
         return ET.tostring(element).decode()
-    
+
     def print_summary(self, indent=0):
         """
         Prints a summary of this object containing all entries
         """
-        print('\t'*indent, self)
+        print('\t' * indent, self)
         for entry in self._entries:
-            entry.print_summary(indent+1)
+            entry.print_summary(indent + 1)
+
 
 class FileEntry(Entry):
     """
@@ -417,7 +447,7 @@ class FileEntry(Entry):
     Subtypes of FileEntry include ValuesEntry, EventEntry, CustomEntry and
     SignalEntry.
     """
-    
+
     def __repr__(self):
         id = self.attrib.get('id', 'None')
         return "<{}({})>".format(self._name, id)
@@ -427,7 +457,7 @@ class FileEntry(Entry):
         if isinstance(id, str): id = id.replace('\\', '/')
         super().__init__(attrib=attrib, parent=parent, **kwargs)
         if 'id' in self.attrib:
-            self._filename = self._folder + '/' +  self.id
+            self._filename = self._folder + '/' + self.id
             if not os.access(self._filename, os.F_OK):
                 logging.error('File {} does not exist'.format(self.id))
                 folder = os.path.dirname(self._filename)
@@ -435,7 +465,7 @@ class FileEntry(Entry):
                     os.makedirs(folder, exist_ok=True)
             self.set_attrib('id', self.attrib['id'])
         elif id:
-            if os.path.splitext(str(id))[-1]=='':
+            if os.path.splitext(str(id))[-1] == '':
                 logging.warning('id should be a filename with extension ie. .bin')
             self._filename = os.path.join(self._folder, id)
             self.set_attrib('id', id)
@@ -446,18 +476,14 @@ class FileEntry(Entry):
             raise ValueError('id must be supplied')
         valid_filename(self.id)
         if isinstance(parent, Entry): parent.add_entry(self)
-        
-        
 
 
-
-        
 class SignalEntry(FileEntry):
-    
-    def __init__(self, id=None,  attrib=None, parent='.', **kwargs):
+
+    def __init__(self, id=None, attrib=None, parent='.', **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
-        
-    def get_data(self, scaled:bool=True, return_type:str='numpy') -> np.array:
+
+    def get_data(self) -> np.array:
         """
         Will try to load the binary data using numpy.
         This might not always work as endianess can't be determined
@@ -476,22 +502,30 @@ class SignalEntry(FileEntry):
 
         """
 
+        if self.id.endswith('csv'):
+            data = np.genfromtxt(self._filename, dtype=str, delimiter=self.csvFileFormat.separator)
+            data = data.astype(float)
+            return data.T
+
+        assert self.id.endswith('bin') and 'lsbValue' in dir(self), \
+            'incompatible id: SignalEntry only allows for .bin or .csv format'
         n_channels = len(self.channel) if isinstance(self.channel, list) else 1
         dtypestr = self.dataType.lower()
         dtype = np.__dict__.get(dtypestr, f'UNKOWN_DATATYPE: {dtypestr}')
         data = np.fromfile(self._filename, dtype=dtype)
-        if scaled:
-            if 'baseline' in dir(self):
-                data = ((data-float(self.baseline)) * float(self.lsbValue))
-            else:
-                data = (data * float(self.lsbValue))
+        if 'baseline' in self.attrib:
+            data = ((data - float(self.baseline)) * float(self.lsbValue))
+        elif self.lsbValue != 1:
+            data = (data * float(self.lsbValue))
         return data.reshape([-1, n_channels]).T
-    
-    
-    def set_data(self, data:np.ndarray, dataType:str=None, ch_names:list=None, 
-                       sampleRate:int=256, lsbValue:float=1, unit:str=None, 
-                       comment:str=None, contentClass:str=None,
-                       adcResolution:int=None, baseline:float=None, **kwargs):
+
+    def set_data(self, data: np.ndarray, sampleRate: float = None, dataType: str = None,
+                 ch_names: list = None, unit: str = None,
+                 lsbValue: float = None, adcZero: int = None,
+                 adcResolution: int = None, baseline: int = None,
+                 comment: str = None, contentClass: str = None,
+                 source: str = None, sourceId: str = None,
+                 decimalSeparator: str = '.', separator: str = ';', **kwargs):
         """
         Set the data that is connected to this SignalEntry.
         The data will in any case be saved with Endianness LITTLE,
@@ -529,107 +563,89 @@ class SignalEntry(FileEntry):
         """
         self._check_readonly()
 
-        file = os.path.join(self._folder, self.id)
-        
-        # if list, convert to numpy array
-        if isinstance(data, list):
-            # if the list entries are arrays, we can infer the dtype from them
-            if isinstance(data[0], np.ndarray) and dataType is None:
-                dtype = str(data[0].dtype)
-            else:
-                dtype = type(data[0][0])
-            if dtype==np.int64 or dtype==int: dtype=np.int32
-            data = np.array(data, dtype=dtype)
-        
-        data = np.atleast_2d(data)
-        order = sys.byteorder.upper() # endianess
-        fileFormat = MiscEntry('binFileFormat', key='endianess', value=order)
-        self.add_entry(fileFormat)
-
-        #### dtype inference start
-        dtype_mapping = {'float16': 'float',
-                         'float32': 'float',
-                         'float64': 'double',
-                         'int': 'int32'}
-
+        data = np.atleast_2d(np.array(data))
         if dataType is None:
-            dataType = str(data.dtype).upper()
+            if 'dataType' in self.attrib:
+                dataType = self.dataType
+            else:
+                dataType = str(data.dtype)
+        self.set_attrib('dataType', infer_dtype(dataType).lower())
 
-        dataType = dtype_mapping.get(dataType.lower(), dataType)
-        allowed_dtypes = ['DOUBLE', 'FLOAT', 'INT16', 'INT32', 
-                          'INT8', 'UINT16', 'UINT32', 'UINT8']
-        assert dataType.upper() in allowed_dtypes,\
-                f'{dataType} is not in {allowed_dtypes}'
+        if lsbValue is not None:
+            self.set_attrib('lsbValue', lsbValue)
+        elif 'lsbValue' not in self.attrib:
+            self.set_attrib('lsbValue', 1)
+        if baseline is not None:
+            self.set_attrib('baseline', baseline)
 
-        #### dtype inference end
-                
-        # if we get a string supplied, we convert to list
-        if isinstance(ch_names, str): ch_names = [ch_names]
-        
-        if ch_names is None and hasattr(self, 'channel') and\
-           len(self.channel)==len(data): 
-               # this means channel information is present and matches array
-               pass
-        elif ch_names is not None: 
-            # this means new channel names are indicated and will overwrite.
-            assert len(ch_names)==len(data), f'len {ch_names}!={len(data)}'
-            if hasattr(self, 'channel'):
-                logging.warning('Channels present will be overwritten')
-                self.remove_entry('channel')
-            for name in ch_names:
-                channel = MiscEntry('channel', key='name', value=name)
-                self.add_entry(channel)
-        elif ch_names is None and not hasattr(self, 'channel'):
-            # this means no channel names are indicated and none exist
-            # we create new generic names for the channels
-            logging.info('No channel names indicated, will use generic names')
-            for i in range(len(data)):
-                channel = MiscEntry('channel', key='name', value=f'ch_{i}')
-                self.add_entry(channel)
+        if self.id.endswith('csv'):
+            fileFormat = MiscEntry('csvFileFormat', parent=self)
+            fileFormat.set_attrib('decimalSeparator', decimalSeparator)
+            fileFormat.set_attrib('separator', separator)
+            self.add_entry(fileFormat)
+
+            write_csv(self._filename, data.T, sep=self.csvFileFormat.separator,
+                      decimal_sep=self.csvFileFormat.decimalSeparator)
+        elif self.id.endswith('bin'):
+            order = sys.byteorder.upper()  # endianess
+            fileFormat = MiscEntry('binFileFormat', key='endianess', value=order)
+            self.add_entry(fileFormat)
+
+            if 'baseline' in self.attrib:
+                data = (data / float(self.lsbValue)) + float(self.baseline)
+            elif self.lsbValue != 1:
+                data = data / float(self.lsbValue)
+
+            if 'int' in dataType:
+                data = np.round(data, 10)
+            data_formatted = data.astype(dataType)
+            assert abs(np.sum(data-data_formatted)) < 1e-10, \
+                f"Can't format to dataType {dataType} without loss."
+
+            # save data transposed because unisens reads rows*columns not columns*rows like numpy
+            data_formatted.T.tofile(self._filename)
         else:
-            # this means there are channel names there but do not match n_data
-            raise ValueError('Must indicate channel names')
-        
-        # save data using numpy , 
-        # .T because unisens reads rows*columns not columns*rows like numpy
-        data.T.tofile(file)
-        
-        if baseline is not None: self.set_attrib('baseline', baseline)
+            raise ValueError('incompatible id: SignalEntry only allows for .bin or .csv format')
+
+        self._set_channels(ch_names, n_data=len(data))
+
         if sampleRate is not None: self.set_attrib('sampleRate', sampleRate)
-        if lsbValue is not None: self.set_attrib('lsbValue', lsbValue)
+        assert 'sampleRate' in self.attrib, "Please specify sampleRate for correct visualization."
         if unit is not None: self.set_attrib('unit', unit)
         if comment is not None: self.set_attrib('comment', comment)
         if contentClass is not None: self.set_attrib('contentClass', contentClass)
-        if dataType is not None: self.set_attrib('dataType', dataType.lower())
-        if adcResolution is not None: self.set_attrib('adcResolution',adcResolution)
-        
+        if adcZero is not None: self.set_attrib('adcZero', adcZero)
+        if adcResolution is not None: self.set_attrib('adcResolution', adcResolution)
+        if source is not None: self.set_attrib('source', source)
+        if sourceId is not None: self.set_attrib('sourceId', sourceId)
+
         # set all other keyword arguments/comments as well.
         for key in kwargs:
             self.set_attrib(key, kwargs[key])
-            
+
         self._autosave()
-        return self        
+        return self
+
 
 class CsvFileEntry(FileEntry):
     """
     A FileEntry that links a csv file.
     """
-    def __init__(self, id=None, attrib=None, parent='.', 
+
+    def __init__(self, id=None, attrib=None, parent='.',
                  decimalSeparator='.', separator=';', **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
         assert decimalSeparator and separator, 'Must supply separators'
 
         if not self.id.endswith('csv'):
             logging.warning(f'id "{id}" does not end in .csv')
-        
+
         csvFileFormat = MiscEntry('csvFileFormat', parent=self)
         csvFileFormat.set_attrib('decimalSeparator', decimalSeparator)
         csvFileFormat.set_attrib('separator', separator)
         self.add_entry(csvFileFormat)
-        
-            
-    
-    def set_data(self, data:list, **kwargs):
+
+    def set_data(self, data: list, **kwargs):
         """
         Set data of this csv object.
 
@@ -641,28 +657,27 @@ class CsvFileEntry(FileEntry):
         **kwargs : str
             DESCRIPTION.
         """
-    
+
         self._check_readonly()
 
-        assert 'csvFileFormat' in self.__dict__, 'csvFileFormat information'\
-                                    'missing: No separator and decimal set'
-        assert isinstance(data, (list, np.ndarray)),\
+        assert 'csvFileFormat' in self.__dict__, 'csvFileFormat information' \
+                                                 'missing: No separator and decimal set'
+        assert isinstance(data, (list, np.ndarray)), \
             f'data must be list of lists, is {type(data)}'
         sep = self.csvFileFormat.separator
         dec = self.csvFileFormat.decimalSeparator
 
+        if len(data) == 0 or len(data[0]) < 2: logging.warning('Should supply at least two columns: ' \
+                                                               'time and data')
 
-        if len(data)==0 or len(data[0])<2: logging.warning('Should supply at least two columns: '\
-                                  'time and data')
-        
         write_csv(self._filename, data, sep=sep, decimal_sep=dec)
-            
+
         for key in kwargs:
             self.set_attrib(key, kwargs[key])
         self._autosave()
         return self
-        
-    def get_data(self, mode:str='list'):
+
+    def get_data(self, mode: str = 'list'):
         """
         Will try to load the csv data using a list, pandas or numpy.
         
@@ -672,14 +687,14 @@ class CsvFileEntry(FileEntry):
         """
         sep = self.csvFileFormat.separator
         dec = self.csvFileFormat.decimalSeparator
-        
+
         if mode in ('numpy', 'np', 'array'):
-            lines = np.genfromtxt(self._filename, delimiter=sep, 
-                                 dtype=str)
+            lines = np.genfromtxt(self._filename, delimiter=sep,
+                                  dtype=str)
         elif mode in ('pandas', 'pd', 'dataframe'):
             import pandas as pd
             lines = pd.read_csv(self._filename, sep=sep,
-                               header=None, index_col=None)
+                                header=None, index_col=None)
         elif mode == 'list':
             lines = read_csv(self._filename, sep=sep, decimal_sep=dec,
                              convert_nums=True)
@@ -687,7 +702,6 @@ class CsvFileEntry(FileEntry):
             raise ValueError('Invalid mode: {}, select from'
                              '["numpy", "pandas", "list"]'.format(mode))
         return lines
-
 
     def get_times(self):
         """
@@ -701,8 +715,7 @@ class CsvFileEntry(FileEntry):
         data = self.get_data()
         times, _ = zip(*data)
         return list(times)
-        
-    
+
     def get_labels(self):
         """
         Retrieves the labels this CSV entry
@@ -723,53 +736,29 @@ class ValuesEntry(CsvFileEntry):
     
     :param test: test
     """
-    
-    def __init__(self, id=None, attrib=None, parent='.' , **kwargs):
-        super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
-        
-    def set_data(self, data:list, ch_names=None, **kwargs):
-        # if we get a string supplied, we convert to list
-        super().set_data(data, **kwargs) 
-        
-        if isinstance(ch_names, str): ch_names = [ch_names]
-        n_cols = len(data[0])-1
 
-        if ch_names is None and hasattr(self, 'channel') and\
-           len(self.channel)==n_cols: 
-               # this means channel information is present and matches array
-               pass
-        elif ch_names is not None: 
-            # this means new channel names are indicated and will overwrite.
-            assert len(ch_names)==n_cols, f'len {ch_names}!={len(data)}'
-            if hasattr(self, 'channel'):
-                logging.warning('Channels present will be overwritten')
-                self.remove_entry('channel')
-            for name in ch_names:
-                channel = MiscEntry('channel', key='name', value=name)
-                self.add_entry(channel)
-        elif ch_names is None and not hasattr(self, 'channel'):
-            # this means no channel names are indicated and none exist
-            # we create new generic names for the channels
-            logging.info('No channel names indicated, will use generic names')
-            for i in range(n_cols):
-                channel = MiscEntry('channel', key='name', value=f'ch_{i}')
-                self.add_entry(channel)
-        else:
-            # this means there are channel names there but do not match n_data
-            raise ValueError('Must indicate channel names')
+    def __init__(self, id=None, attrib=None, parent='.', **kwargs):
+        super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
+
+    def set_data(self, data: list, ch_names=None, **kwargs):
+        # if we get a string supplied, we convert to list
+        super().set_data(data, **kwargs)
+
+        self._set_channels(ch_names, n_data=len(data[0]) - 1)
+
         self._autosave()
         return self
 
-    
+
 class EventEntry(CsvFileEntry):
-    def __init__(self, id=None, attrib=None, parent='.' , **kwargs):
+    def __init__(self, id=None, attrib=None, parent='.', **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
-        
-    
+
+
 class CustomEntry(FileEntry):
-    
+
     def __init__(self, id=None, **kwargs):
-        super().__init__(id=id, **kwargs)  
+        super().__init__(id=id, **kwargs)
         self._autosave()
 
     def get_data(self, dtype='auto'):
@@ -788,58 +777,58 @@ class CustomEntry(FileEntry):
         :returns: the binary data or the otherwise loaded data
         """
 
-        if dtype=='auto':
-            
+        if dtype == 'auto':
+
             ext = os.path.splitext(self._filename)[-1].lower()
             txt_exts = ['.txt', '.csv', '.ini']
             img_exts = ['.jpeg', '.jpg', '.bmp', '.png', '.tif', '.gif']
-            
-            if hasattr(self, 'dataType'): 
+
+            if hasattr(self, 'dataType'):
                 dtype = self.dataType
             elif ext in img_exts:
-                dtype='image'
+                dtype = 'image'
             elif ext in txt_exts:
-                dtype='text'
-            elif ext=='.json':
-                dtype='json'
-            elif ext=='.npy':
-                dtype='numpy'
-            elif ext=='.pkl':
-                dtype='pickle'
+                dtype = 'text'
+            elif ext == '.json':
+                dtype = 'json'
+            elif ext == '.npy':
+                dtype = 'numpy'
+            elif ext == '.pkl':
+                dtype = 'pickle'
             else:
-                dtype='binary'
-                
-        if dtype=='binary':
+                dtype = 'binary'
+
+        if dtype == 'binary':
             with open(self._filename, 'rb') as f:
                 data = f.read()
-        elif dtype=='csv':
+        elif dtype == 'csv':
             data = read_csv(self._filename)
-        elif dtype=='text':
+        elif dtype == 'text':
             with open(self._filename, 'r') as f:
                 data = f.read()
-        elif dtype=='image':
+        elif dtype == 'image':
             imageio = get_module('imageio')
             data = imageio.imread(self._filename)
 
-        elif dtype=='pickle':
+        elif dtype == 'pickle':
             pickle = get_module('pickle')
             with open(self._filename, 'rb') as f:
                 data = pickle.load(f)
-        elif dtype=='json':
+        elif dtype == 'json':
             try:
                 import json_tricks as json
             except:
                 json = get_module('json')
             with open(self._filename, 'r') as f:
                 data = json.load(f)
-        elif dtype=='numpy':
+        elif dtype == 'numpy':
             data = np.load(self._filename)
         else:
             raise ValueError('unknown dtype {}'.format(dtype))
-            
+
         self.dataType = dtype
         return data
-    
+
     def set_data(self, data, dtype='auto', **kwargs):
         """
         Will save custom data to disk.
@@ -851,108 +840,100 @@ class CustomEntry(FileEntry):
         self._check_readonly()
 
         # infer datatype automatically
-        if dtype=='auto':
+        if dtype == 'auto':
             ext = os.path.splitext(self._filename)[-1].lower()
             txt_exts = ['.txt', '.ini', '.csv']
             img_exts = ['.jpeg', '.jpg', '.bmp', '.png', '.tif', '.gif']
-            
+
             if ext in img_exts:
-                dtype='image'
+                dtype = 'image'
             elif ext in txt_exts:
-                dtype='text'
-            elif ext=='.json':
-                dtype='json'
-            elif ext=='.pkl':
-                dtype='pickle'
-            elif ext=='.npy':
-                dtype='numpy'
+                dtype = 'text'
+            elif ext == '.json':
+                dtype = 'json'
+            elif ext == '.pkl':
+                dtype = 'pickle'
+            elif ext == '.npy':
+                dtype = 'numpy'
             else:
-                dtype='binary'
-        
+                dtype = 'binary'
+
         # file saving from here on
-        if dtype=='binary':
+        if dtype == 'binary':
             with open(self._filename, 'wb') as f:
                 f.write(data)
-        elif dtype=='text':
+        elif dtype == 'text':
             with open(self._filename, 'w') as f:
                 f.write(data)
-        elif dtype=='image':
+        elif dtype == 'image':
             imageio = get_module('imageio')
             imageio.imsave(self._filename, data)
-        elif dtype=='pickle':
+        elif dtype == 'pickle':
             pickle = get_module('pickle')
             with open(self._filename, 'wb') as f:
                 data = pickle.dump(data, f, protocol=3)
-        elif dtype=='json':
+        elif dtype == 'json':
             try:
                 import json_tricks as json
                 tricks_installed = True
             except:
                 json = get_module('json')
-                tricks_installed = False   
+                tricks_installed = False
             with open(self._filename, 'w') as f:
                 if tricks_installed:
                     json.dump(data, f, allow_nan=True)
                 else:
                     json.dump(data, f)
-        elif dtype=='numpy':
+        elif dtype == 'numpy':
             data = np.save(self._filename, data)
         else:
             raise ValueError('unknown dtype {}'.format(dtype))
-            
+
         for key in kwargs:
             self.set_attrib(key, kwargs[key])
-            
+
         # save dtype within the entry
         self.dataType = dtype
-        
+
         self._autosave()
         return self
-    
-    
+
+
 class CustomAttributes(Entry):
-    def __init__(self, key:str=None, value:str=None, **kwargs):
-        super().__init__(**kwargs)   
+    def __init__(self, key: str = None, value: str = None, **kwargs):
+        super().__init__(**kwargs)
         if key and value:
             self.set_attrib(key, value)
-        
+
     def to_element(self):
         element = Element(self._name, attrib={})
         element.tail = '\n  \n  \n  '
         element.text = '\n'
         for key in self.attrib:
-            customAttribute = MiscEntry(name = 'customAttribute')
+            customAttribute = MiscEntry(name='customAttribute')
             customAttribute.key = key
             customAttribute.value = self.attrib[key]
             subelement = customAttribute.to_element()
             element.append(subelement)
         return element
-    
-    def add_entry(self, entry:'MiscEntry'):
+
+    def add_entry(self, entry: MiscEntry):
         if entry._name != 'customAttribute':
             logging.error('Can only add customAttribute type')
             return
         self.set_attrib(entry.key, entry.value)
         self._autosave()
-        
-  
+
+
 class MiscEntry(Entry):
-    def __init__(self, name:str, key:str=None, value:str=None, **kwargs):
-        super().__init__(**kwargs) 
+    def __init__(self, name: str, key: str = None, value: str = None, **kwargs):
+        super().__init__(**kwargs)
         self._name = strip(name)
         if key and value:
             self.set_attrib(key, value)
         self._autosave()
-        
-        
+
+
 class CustomAttribute(MiscEntry):
-    def __new__(*args,**kwargs):
+    def __new__(*args, **kwargs):
         return MiscEntry('customAttribute', **kwargs)
-
-
-
-        
-        
-        
-        
-        
