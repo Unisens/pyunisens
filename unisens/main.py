@@ -31,10 +31,6 @@ from .utils import AttrDict, strip, validkey, lowercase, make_key, indent
 from .utils import str2num
 
 
-# try: profile #a hack for not having to remove the profile tags when not testing
-# except NameError: profile = lambda x: x   # pass-through decorator
-
-
 class Unisens(Entry):
     """
     Initializes a Unisens object.
@@ -49,7 +45,6 @@ class Unisens(Entry):
     :param attrib: The attribute 
     """
 
-    # @profile
     def __init__(self, folder: str, makenew=False, autosave=False, readonly=False,
                  comment: str = '', duration: int = 0, measurementId: str = 'NaN',
                  timestampStart='', filename='unisens.xml',
@@ -134,7 +129,6 @@ class Unisens(Entry):
         if self.__dict__.get('_autosave_enabled', False):
             self.save()
 
-    # @profile
     def add_entry(self, entry: Entry, stack=None):
         """
         Add a subentry to this unisens object, e.g ValueEntry, SignalEntry
@@ -160,7 +154,6 @@ class Unisens(Entry):
         del self.__dict__[key]
         return self
 
-    # @profile
     def unpack_element(self, element: (Element, ET)) -> Entry:
         """
         Unpacks an xmltree element iteratively into an the
@@ -228,7 +221,6 @@ class Unisens(Entry):
                  encoding='utf-8')
         return self
 
-    # @profile
     def _read_unisens(self):
         """
         Loads an XML Unisens file into this Unisens object.
