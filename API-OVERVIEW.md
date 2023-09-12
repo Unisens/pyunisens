@@ -118,7 +118,7 @@ u = unisens.Unisens('c:/unisens', makenew=True, autosave=True, readonly=False)
 
 ## SignalEntry
 
-SignalEntries can be used to store continuous numeric data with high frequency, e.g. ECG signals. They are saved in binary format. It is possible to save multiple channels. Things like sample frequency and other meta information can be saved in them as well. Data must be of size `[1, N]`.
+SignalEntries can be used to store continuous numeric data with high frequency, e.g. ECG signals. They are saved in binary or csv format. It is possible to save multiple channels. Things like sample frequency and other meta information can be saved in them as well. Data must be of size `[1, N]`.
 
 ```Python
 from unisens import Unisens, SignalEntry
@@ -143,7 +143,7 @@ u.save()
 ```
 
 ## ValuesEntry
-`ValuesEntry` is used for low-frequency continuously sampled data, e.g. Temperature or RR intervals. It is basically equivalent to `SignalEntry` except that it saves data in CSV (text) format, and not binary. Data must be of size `[1, N]`.
+`ValuesEntry` is used for low-frequency continuously sampled data, e.g. Temperature or RR intervals. It is basically equivalent to `SignalEntry` except that it saves data in CSV (text) format, and not binary. Data must be of size `[N, 1]`, i.e. column-wise, with indices in the first column. The integer indices are matched with the sample rate and the unisens timestamp start to display correctly in the Un isensViewer.
 
 ```Python
 from unisens import Unisens, ValuesEntry

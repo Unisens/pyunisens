@@ -137,6 +137,8 @@ dmypy.json
 
 # pytype static type analyzer
 .pytype/
-/test/Example_001/test.xml
-/test/Example_002/test.xml
-/test/Example_003/test.xml
+/test/Example_001/
+/test/Example_002/
+/test/Example_003/
+
+*tmp/

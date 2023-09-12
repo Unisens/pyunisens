@@ -50,7 +50,7 @@ class Unisens(Entry):
     """
 
     # @profile
-    def __init__(self, folder, makenew=False, autosave=False, readonly=False,
+    def __init__(self, folder: str, makenew=False, autosave=False, readonly=False,
                  comment: str = '', duration: int = 0, measurementId: str = 'NaN',
                  timestampStart='', filename='unisens.xml',
                  convert_nums=False):
@@ -72,10 +72,9 @@ class Unisens(Entry):
         assert autosave != readonly or not autosave and not readonly, \
             'either read-only or autosave can be enabled'
         assert isinstance(folder, str), f'folder must be string, is {folder}'
-        self._folder = folder
-        self._file = os.path.join(folder, filename)
-        os.makedirs(folder, exist_ok=True)
-        folder = os.path.dirname(folder + '/')
+        self._folder = os.path.normpath(folder)
+        self._file = os.path.join(self._folder, filename)
+        os.makedirs(self._folder, exist_ok=True)
 
         self.entries = AttrDict()
         self._entries = list()
@@ -85,7 +84,7 @@ class Unisens(Entry):
 
         if os.path.isfile(self._file) and not makenew:
             logging.debug('loading unisens.xml from {}'.format(self._file))
-            self.read_unisens(folder, filename=filename)
+            self._read_unisens()
         else:
             logging.debug('New unisens.xml will be created at {}'.format(self._file))
             if not timestampStart:
@@ -136,7 +135,7 @@ class Unisens(Entry):
             self.save()
 
     # @profile
-    def add_entry(self, entry: Entry):
+    def add_entry(self, entry: Entry, stack=None):
         """
         Add a subentry to this unisens object, e.g ValueEntry, SignalEntry
         
@@ -149,6 +148,16 @@ class Unisens(Entry):
                 raise KeyError(f'{entry.id} already present in Unisens')
             self.entries[entry.id] = entry
         super().add_entry(entry, stack=False)
+        return self
+
+    def remove_entry(self, name: str):
+        i, key = self._get_index(name)
+        entry = self._entries[i]
+        for e_name, e in list(self.entries.items()):
+            if e == entry:
+                del self.entries[e_name]
+        del self._entries[i]
+        del self.__dict__[key]
         return self
 
     # @profile
@@ -220,25 +229,19 @@ class Unisens(Entry):
         return self
 
     # @profile
-    def read_unisens(self, folder: str, filename='unisens.xml') -> Entry:
+    def _read_unisens(self):
         """
         Loads an XML Unisens file into this Unisens object.
         That means, self.attrib and self.children are added
         as well as tag, tail and text
-        
-        :param folder: folder where the unisens.xml is located.
-        :param filename: usually 'unisens.xml'
-        :returns: self
         """
-        folder += '/'  # to avoid any ospath errors and confusion, append /
-        file = os.path.join(os.path.dirname(folder), filename)
-        if not os.path.isfile(file):
-            raise FileNotFoundError('{} does not exist'.format(folder))
+        if not os.path.isfile(self._file):
+            raise FileNotFoundError('{} does not exist'.format(self._file))
 
         try:
-            root = ET.parse(file).getroot()
+            root = ET.parse(self._file).getroot()
         except Exception as e:
-            print('Error reading {}'.format(file))
+            print('Error reading {}'.format(self._file))
             raise e
 
         # copy all attributes from root to this Unisens object
@@ -263,4 +266,4 @@ class Unisens(Entry):
         entries = zip(keys, self.entries.values())
         self.__dict__.update(entries)
 
-        return self
+        return

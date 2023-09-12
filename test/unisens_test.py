@@ -11,7 +11,6 @@ from unisens import make_key
 
 import unittest
 import shutil
-import tempfile
 import numpy as np
 import pickle
 
@@ -26,12 +25,15 @@ def elements_equal(e1, e2):
 
 
 class Testing(unittest.TestCase):
+    tmpdir = os.path.join(os.path.dirname(__file__), 'tmp')
 
-    def setUp(self):
-        self.tmpdir = tempfile.mkdtemp(prefix='unisens')
+    @classmethod
+    def setUp(cls):
+        os.makedirs(cls.tmpdir, exist_ok=True)
 
-    def tearDown(self):
-        shutil.rmtree(self.tmpdir)
+    @classmethod
+    def tearDown(cls):
+        shutil.rmtree(cls.tmpdir)
 
     def test_unisens_creation(self):
         folder = os.path.join(self.tmpdir, 'data', 'record1')
@@ -78,8 +80,9 @@ class Testing(unittest.TestCase):
     def test_entry_creation(self):
         folder = os.path.join(self.tmpdir, 'data', 'record2')
         for entrytype in [CustomEntry, ValuesEntry, SignalEntry, EventEntry]:
-            with self.assertRaises(ValueError):
-                entry = entrytype()
+            with self.assertRaises(ValueError) as e:
+                entrytype()
+            assert 'id must be supplied' in str(e.exception)
 
             entry = entrytype(parent=folder, id='test.csv')
             entry.set_attrib('key1', 'value1')
@@ -420,8 +423,6 @@ class Testing(unittest.TestCase):
         self.assertDictEqual(u['pickle.pkl'].get_data(), data)
 
     def test_save_csvetry(self):
-        self.tmpdir = tempfile.mkdtemp(prefix='unisens')
-
         folder = os.path.join(self.tmpdir, 'data', 'record1')
 
         u = Unisens(folder, makenew=True)
@@ -465,8 +466,6 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(times, times2)
 
     def test_save_valuesentry(self):
-        self.tmpdir = tempfile.mkdtemp(prefix='unisens')
-
         folder = os.path.join(self.tmpdir, 'data', 'record1')
 
         u = Unisens(folder, makenew=True)
@@ -510,7 +509,7 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(times, times2)
 
     def test_access_no_ext_item(self):
-        u = Unisens(tempfile.mkdtemp(prefix='unisens'))
+        u = Unisens(self.tmpdir, makenew=True)
         entry1 = SignalEntry('single.csv', parent=u)
         entry2 = SignalEntry('double.csv', parent=u)
         entry3 = SignalEntry('double.bin', parent=u)
@@ -528,7 +527,7 @@ class Testing(unittest.TestCase):
         self.assertNotIn('double', u)
 
     def test_access_no_ext_attrib(self):
-        u = Unisens(tempfile.mkdtemp(prefix='unisens'))
+        u = Unisens(self.tmpdir, makenew=True)
         entry1 = SignalEntry('single.csv', parent=u)
         entry2 = SignalEntry('double.csv', parent=u)
         entry3 = SignalEntry('double.bin', parent=u)
@@ -542,7 +541,7 @@ class Testing(unittest.TestCase):
 
     def test_subentries(self):
         """this is not officially supported, but useful"""
-        folder = tempfile.mkdtemp(prefix='unisens_x')
+        folder = os.path.join(self.tmpdir, 'subentries')
         u = Unisens(folder, makenew=True, autosave=True)
         c = CustomEntry(id='test.bin', parent=u).set_data(b'123')
         CustomEntry('feat1.txt', parent=c).set_data('123')
@@ -556,23 +555,23 @@ class Testing(unittest.TestCase):
 
     def test_entries_with_subfolder(self):
         """this is not officially supported, but useful"""
-        folder = tempfile.mkdtemp(prefix='unisens_x')
+        folder = os.path.join(self.tmpdir, 'subfolder')
         u = Unisens(folder, makenew=True, autosave=True)
         c = CustomEntry(id='test.bin', parent=u)
-        c1 = CustomEntry('sub/feat1.txt', parent=c).set_data('123')
-        c2 = CustomEntry('sub\\feat2.txt', parent=c).set_data('456')
+        c1 = CustomEntry('sub1/feat1.txt', parent=c).set_data('123')
+        c2 = CustomEntry('sub2\\feat2.txt', parent=c).set_data('456')
         with self.assertRaises((ValueError, PermissionError, OSError)):
-            CustomEntry('\\sub\\feat3.txt', parent=c).set_data('789')
+            CustomEntry('\\sub\\feat3.txt', parent=c)
 
         self.assertTrue(os.path.isfile(c1._filename), f'{c1._filename} not found')
         self.assertTrue(os.path.isfile(c2._filename), f'{c2._filename} not found')
         with open(os.path.join(folder, 'test.bin'), 'w'): pass
         u = Unisens(folder)
         self.assertEqual(u['test']['feat1'].get_data(), '123')
-        self.assertEqual(u['test']['sub/feat2.txt'].get_data(), '456')
+        self.assertEqual(u['test']['sub2/feat2.txt'].get_data(), '456')
 
     def test_copy(self):
-        folder = tempfile.mkdtemp(prefix='unisens_copy')
+        folder = os.path.join(self.tmpdir, 'copy')
         u1 = Unisens(folder, makenew=True, autosave=True)
         CustomEntry('test1.txt', parent=u1).set_data('asd')
         u2 = u1.copy()
@@ -586,16 +585,20 @@ class Testing(unittest.TestCase):
         self.assertEqual(u2['test1'].get_data(), 'asd')
         self.assertEqual(u1['test2'].get_data(), 'qwerty')
 
-        with self.assertRaises(KeyError):
+        with self.assertRaises(KeyError) as e:
             u2['test2']
+        assert 'test2' in str(e.exception)
 
     def test_nostacking(self):
         """this is not officially supported, but useful"""
-        folder = tempfile.mkdtemp(prefix='unisens_')
+        folder = os.path.join(self.tmpdir, 'stack')
 
         c = CustomEntry(id='test.bin', parent=folder)
         f = FileEntry('feat1.txt', parent=folder)
-        c.add_entry(f.copy())
+        d = f.copy()
+        assert d._parent is None
+        c.add_entry(d)
+        assert d._parent == c
         c.add_entry(f.copy())
         self.assertEqual(len(c), 2)
 
@@ -619,10 +622,11 @@ class Testing(unittest.TestCase):
         c.add_entry(f.copy().set_attrib('test2', 'val2'), stack=False)
         self.assertEqual(len(c), 1)
         self.assertEqual(c['test'].test2, 'val2')
+        assert not hasattr(c.test, 'test1')
 
     def test_indexfinding(self):
         """try whether the index finding method is working correctly"""
-        folder = tempfile.mkdtemp(prefix='unisens_')
+        folder = os.path.join(self.tmpdir, 'index')
 
         c = CustomEntry(id='test.bin', parent=folder)
         FileEntry('feat1.txt', parent=c)
@@ -656,7 +660,7 @@ class Testing(unittest.TestCase):
 
     def test_indexfinding_subfolders(self):
         """try whether the index finding method is working correctly"""
-        folder = tempfile.mkdtemp(prefix='unisens_')
+        folder = os.path.join(self.tmpdir, 'index_subfolders')
 
         c = CustomEntry(id='test.bin', parent=folder)
         FileEntry('feat.txt', parent=c)
@@ -676,7 +680,7 @@ class Testing(unittest.TestCase):
             self.assertEqual(c._get_index('feat'), (0, 'feat_txt'))
 
     def test_nooverwrite(self):
-        folder = tempfile.mkdtemp(prefix='unisens_copy')
+        folder = os.path.join(self.tmpdir, 'no_overwrite')
         u = Unisens(folder, makenew=True, autosave=True)
         c = CustomEntry('test.txt', parent=u).set_attrib('a1', 'b1')
         self.assertEqual(u.test.a1, 'b1')
@@ -685,7 +689,7 @@ class Testing(unittest.TestCase):
             CustomEntry('asd.bin', parent=c)
 
     def test_loaddifferentfile(self):
-        folder = tempfile.mkdtemp(prefix='unisens_newfile')
+        folder = os.path.join(self.tmpdir, 'newfile')
         u = Unisens(folder, makenew=True, autosave=False)
         c = CustomEntry('test.txt', parent=u).set_attrib('a1', 'b1').set_data('test')
         self.assertEqual(str(c), '<customEntry(test.txt)>')
@@ -699,7 +703,7 @@ class Testing(unittest.TestCase):
         self.assertTrue(elements_equal(u.to_element(), u2.to_element()))
 
     def test_loaddifferentfile2(self):
-        folder = tempfile.mkdtemp(prefix='unisens')
+        folder = os.path.join(self.tmpdir, 'diff_file')
         u = Unisens(folder, makenew=True, autosave=True)
         CustomEntry('test.bin', parent=u).set_data(b'test')
         u.remove_entry('test.bin')
@@ -711,7 +715,7 @@ class Testing(unittest.TestCase):
         u.remove_entry('test_bin')
 
     def test_repr_str(self):
-        folder = tempfile.mkdtemp(prefix='strrepr')
+        folder = os.path.join(self.tmpdir, 'strrepr')
         u = Unisens(folder, makenew=True, autosave=True)
         u.measurementId = 'thisid'
         u.duration = 60 * 2 + 60 * 60 * 2 + 5
@@ -721,7 +725,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(b, f'Unisens(comment=, duration=2:02:05,  id=thisid,timestampStart={u.timestampStart})')
 
     def test_serialize(self):
-        folder = tempfile.mkdtemp(prefix='seria')
+        folder = os.path.join(self.tmpdir, 'seria')
         u = Unisens(folder, makenew=True, autosave=True)
         CustomEntry('test.bin', parent=u).set_data(b'test')
         CustomEntry('test2.bin', parent=u).set_data(b'test2')
@@ -737,7 +741,7 @@ class Testing(unittest.TestCase):
         elements_equal(u.to_element(), u1.to_element())
 
     def test_convert_nums(self):
-        folder = tempfile.mkdtemp(prefix='convert_nums')
+        folder = os.path.join(self.tmpdir, 'convert_nums')
         u = Unisens(folder, makenew=True, autosave=True)
         u.int = 1
         u.float = 1.5
@@ -771,6 +775,24 @@ class Testing(unittest.TestCase):
         self.assertEqual(u1.entry.int, 1)
         self.assertEqual(u1.entry.float, 1.5)
         self.assertEqual(u1.entry.bool, True)
+
+    def test_remove_entry(self):
+        u = Unisens(self.tmpdir, makenew=True)
+        CustomEntry(id='custom.txt', parent=u)
+        SignalEntry(id='signal.bin', parent=u)
+        ValuesEntry(id='values.csv', parent=u)
+        for entry_name in ['custom.txt', 'signal.bin', 'values.csv']:
+            #assert hasattr(u, entry_name)
+            assert make_key(entry_name) in u.__dict__
+            e = u.entries[entry_name]
+            assert e in u._entries
+        del entry_name, e
+        for entry_name in ['signal.bin', 'values.csv', 'custom.txt']:
+            e = u.entries[entry_name]
+            u.remove_entry(entry_name)
+            assert make_key(entry_name) not in u.__dict__
+            assert entry_name not in u.entries
+            assert e not in u._entries
 
     def test_write_signal_entry(self):
         unisens = Unisens(os.path.join(os.path.dirname(__file__), 'Example_003'))

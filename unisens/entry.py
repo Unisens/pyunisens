@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import importlib
 import os, sys
-from os.path import join
-from os import access
+from abc import ABC
+from typing import List, Tuple
+
 import numpy as np
 import logging
 from .utils import validkey, strip, lowercase, make_key, valid_filename, infer_dtype
@@ -30,11 +31,10 @@ def get_module(name):
         return module
     except ModuleNotFoundError:
         print(f'{name} is not installed. Install with pip install {name}')
-        return False
-    raise Exception(f'Cant load module {name}')
+        raise Exception(f'Cant load module {name}')
 
 
-class Entry:
+class Entry(ABC):
     """
     Base class for Unisens entries. All other entries inherit from this.
     
@@ -58,7 +58,7 @@ class Entry:
         return len(self._entries)
 
     def __iter__(self):
-        return list(self._entries).__iter__()
+        return self._entries.__iter__()
 
     def __repr__(self):
         return "<{}({})>".format(self._name, self.attrib)
@@ -126,30 +126,29 @@ class Entry:
 
     def _autosave(self):
         """
-        if autosave is enabled, this function will call the autosave function
-        of parents until the uppermost Unisens object is reached and then
-        save when anything is changed.
+        This function will call the `_autosave` method of `_parents`.
+        If the uppermost `_parent` is a Unisens object changes will be saved
+         according to its attribute `_autosave_enabled`.
+        Otherwise nothing happens.
         """
-        try:
-            if self._parent is not None:
-                self._parent._autosave()
-        except:  # there might an error, then do nothing.
-            pass
+        # not in Java version available
+        if self._parent is not None:
+            self._parent._autosave()
 
     def _check_readonly(self):
         """
         will raise an exception if a write operation 
         is requested to readonly file
+        If available, the `_parent`'s writability is chosen over the instance's.
         """
-        if hasattr(self, '_parent') and self._parent is not None:
-            if isinstance(self._parent, str): return True
-            self._parent._check_readonly()
+        # not in Java version available
+        if hasattr(self, '_parent') and hasattr(self._parent, '_check_readonly'):
+            return self._parent._check_readonly()
         elif hasattr(self, '_readonly') and self._readonly:
             raise IOError(f'Read only, can\'t write to {self._folder}.')
-        return True
 
     # @profile
-    def _get_index(self, id_or_name, raises=True):
+    def _get_index(self, id_or_name: str, raises: bool = True) -> Tuple[int, str]:
         """
         Receive the index and key-name of an object.
         
@@ -161,65 +160,66 @@ class Entry:
         for the entry in ._entry and returns its index as well as its
         key name in the __dict__
 
-        Parameters
-        ----------
-        id_or_name : str
-            The name or id of the Entry.
-        raises : bool, optional
-            Raise an exception if not found. The default is True.
+        Caution: this only returns the first entry's index in _entries when stacking
 
-        Returns
-        -------
-        [index in ._entries, key-name in __dict__].
+        :param id_or_name: str
+            The name or id of the Entry.
+        :param raises: bool, optional
+            Raise an exception if not found. The default is True.
+        :return:
+            i: int, index in ._entries
+            key: str, key-name in __dict__, not id/_name in entry
         """
 
-        id_or_name = id_or_name.upper()
-        id_or_name_key = make_key(id_or_name)
+        id_or_name_key_upper = make_key(id_or_name).upper()
 
         # we don't care about case, gently ignoring Linux file case-sensitivity
         # first check for exact match
         for i, entry in enumerate(self._entries):
             if hasattr(entry, 'id'):
-                id = entry.id
-                id_key = make_key(id)
-                if id_or_name.upper() == id:
-                    return i, id_key  # check for exact match
-                if id_key.upper() == id_or_name_key:
+                id_key = make_key(entry.id)
+                if id_key.upper() == id_or_name_key_upper:
                     return i, id_key  # check for match in key notation
             else:
                 name = entry._name
                 name_key = make_key(name)
-                if name.upper() == id_or_name.upper():  # same as above
-                    return i, name
-                if name_key.upper() == id_or_name_key:
+                if name_key.upper() == id_or_name_key_upper:
                     return i, name
 
+        id_or_name_upper = id_or_name.upper()
         found = []
         for i, entry in enumerate(self._entries):
             if hasattr(entry, 'id'):
-                id = entry.id.replace('\\', '/').upper()  # normalize to linux-slash
-                no_ext = id.rsplit('.', 1)[0]  # remove file extension
+                id_upper = entry.id.upper()
+                no_ext = id_upper.rsplit('.', 1)[0]  # remove file extension
                 # check if file without extension was requested
                 # e.g. 'test' for test.txt
-                if no_ext == id_or_name:
+                if no_ext == id_or_name_upper:
                     found += [(i, make_key(entry.id))]
-                # contains a slash/subdir, so we need to trim that off
-                elif '/' in id:
+                elif '/' in id_upper or '\\' in id_upper:  # remove subdirectories
                     # e.g. 'test' was requested for 'sub/test.txt'
-                    if os.path.basename(no_ext) == id_or_name:
+                    if os.path.basename(no_ext) == id_or_name_upper:
                         found += [(i, make_key(entry.id))]
                     # e.g. 'test.txt' was requested for 'sub/test.txt'
-                    elif os.path.basename(id) == id_or_name:
+                    elif os.path.basename(id_upper) == id_or_name_upper:
                         found += [(i, make_key(entry.id))]
-                # no subdir, but full match
-                elif id == id_or_name:
-                    found += [(i, make_key(entry.id))]
 
         if len(found) == 1: return found[0]
         if len(found) > 1: raise IndexError(f'More than one match for {id_or_name}: {found}')
         raise KeyError(f'{id_or_name} not found')
 
-    def _set_channels(self, ch_names, n_data):
+    def _set_channels(self, ch_names: List[str], n_data: int):
+        """
+        Checks existing channel attributes.
+        Overwrites channel attributes if ch_names are supplied.
+        Writes generic channel names if nothing is given.
+        → Use in set_data for classes requiring channel names.
+
+        :param ch_names: List of channel names (str) or single channel name as str or None
+        :param n_data: amount of required channel names
+            This might match lines / columns of data or
+            one less if an index is expected.
+        """
         if ch_names is not None:
             if isinstance(ch_names, str): ch_names = [ch_names]
             # this means new channel names are indicated and will overwrite.
@@ -244,21 +244,21 @@ class Entry:
             # this means there are channel names there but do not match n_data
             raise ValueError('Channel names must match data')
 
-    def copy(self):
+    def copy(self) -> Entry:
         """
-        Create a deep copy of this Entry.
-        
-        All references to the parent Unisens object will be removed before.
-        
+        Create a deep copy of this Entry without copying the parent.
+        `_parent` is set to None for the resulting copy.
+
         Returns
         -------
         copy : Entry
             An Entry object with all attributes as the invoking object.
 
         """
+        # in Java: clone when adding entry
         if hasattr(self, '_parent'):
             _parent = self._parent
-            del self._parent
+            self._parent = None
             copy = deepcopy(self)
             self._parent = _parent
         else:
@@ -292,37 +292,32 @@ class Entry:
         # there are several Entries that have reserved names.
         # these should not exist double, therefore they are re-set here
         reserved = ['binFileFormat', 'csvFileFormat', 'customFileFormat']
-        if entry._name in reserved:
-            stack = False
 
         name = entry.attrib.get('id', entry.__dict__['_name'])
+        name = make_key(name)
 
-        if not stack:
+        if (not stack or entry._name in reserved):
+            # remove old entry with this name if necessary
             try:
                 self.remove_entry(name)
-            except:
+            except KeyError:
                 pass
 
-        self._entries.append(entry)
-
-        # if an entry already exists with this exact name
-        # we put the entry inside of a list and append the new entry
-        # with the same name. This way all entries are saved
-        name = make_key(name)
         if name in self.__dict__:
-            if isinstance(self.__dict__[name], list):
-                self.__dict__[name].append(entry)
-            else:
+            # stack entries with the same name inside a list
+            if not isinstance(self.__dict__[name], list):
                 self.__dict__[name] = [self.__dict__[name]]
-                self.__dict__[name].append(entry)
+            self.__dict__[name].append(entry)
         else:
             self.__dict__[name] = entry
-        entry.__dict__['_parent'] = self
+
+        self._entries.append(entry)
+        entry._parent = self
         self._autosave()
         return self
 
     # @profile
-    def remove_entry(self, name):
+    def remove_entry(self, name: str):
         """
         Removes a subentry by name.
 
@@ -331,16 +326,10 @@ class Entry:
         name : str
             the name of the entry. 
             Can be abbreviated, e.g. 'samples' instead of 'samples.csv'.
-
         """
         i, key = self._get_index(name)
-        entry = self._entries[i]
         del self._entries[i]
         del self.__dict__[key]
-        # if this is an unisens object, also delete the referer there
-        if self.__dict__.get('entries') is not None:
-            for key, e in list(self.__dict__['entries'].items()):
-                if e == entry: del self.__dict__['entries'][key]
         return self
 
     # @profile
@@ -357,11 +346,11 @@ class Entry:
         """
         name = validkey(name)
         self.attrib[name] = value
-        self.__dict__.update(self.attrib)
+        self.__dict__.update({name: value})
         self._autosave()
         return self
 
-    def get_attrib(self, name: str, default=None):
+    def get_attrib(self, name: str, default=None) -> str:
         """
         Retrieves an attribute of this Entry
 
@@ -454,27 +443,25 @@ class FileEntry(Entry):
 
     # @profile
     def __init__(self, id, attrib=None, parent='.', **kwargs):
-        if isinstance(id, str): id = id.replace('\\', '/')
         super().__init__(attrib=attrib, parent=parent, **kwargs)
         if 'id' in self.attrib:
-            self._filename = self._folder + '/' + self.id
+            # reading entry (id == None)
+            valid_filename(self.id)
+            self._filename = os.path.join(self._folder, self.id)
             if not os.access(self._filename, os.F_OK):
                 logging.error('File {} does not exist'.format(self.id))
-                folder = os.path.dirname(self._filename)
-                if not os.path.exists(folder):
-                    os.makedirs(folder, exist_ok=True)
-            self.set_attrib('id', self.attrib['id'])
         elif id:
+            # writing entry
+            valid_filename(id)
             if os.path.splitext(str(id))[-1] == '':
                 logging.warning('id should be a filename with extension ie. .bin')
             self._filename = os.path.join(self._folder, id)
             self.set_attrib('id', id)
-            folder = os.path.dirname(self._filename)
-            if not os.path.exists(folder):
-                os.makedirs(folder, exist_ok=True)
+            if '/' in id or '\\' in id:
+                sub_folder = os.path.dirname(self._filename)
+                os.makedirs(sub_folder, exist_ok=True)
         else:
             raise ValueError('id must be supplied')
-        valid_filename(self.id)
         if isinstance(parent, Entry): parent.add_entry(self)
 
 
@@ -535,7 +522,7 @@ class SignalEntry(FileEntry):
         Parameters
         ----------
         data : np.ndarray
-            an numpy array.
+            in lines! len(self.channel) == len(data)
         dataType : str, optional
             The data type of the data. If None, is infered automatically.
             Can be 'DOUBLE', 'FLOAT', 'INT16', 'INT32', 
@@ -909,24 +896,25 @@ class CustomAttributes(Entry):
         element = Element(self._name, attrib={})
         element.tail = '\n  \n  \n  '
         element.text = '\n'
-        for key in self.attrib:
-            customAttribute = MiscEntry(name='customAttribute')
-            customAttribute.key = key
-            customAttribute.value = self.attrib[key]
-            subelement = customAttribute.to_element()
+        for key, value in self.attrib.items():
+            subelement = Element('customAttribute', key=key, value=str(value))
             element.append(subelement)
         return element
 
-    def add_entry(self, entry: MiscEntry):
-        if entry._name != 'customAttribute':
-            logging.error('Can only add customAttribute type')
-            return
+    def add_entry(self, entry: CustomAttribute):
+        """ When reading the unisens.xml file, each CustomAttribute is an entry (i.e. subelement)
+        to CustomAttributes and only contains key and value.
+        In contrast, pyunisens will save a CustomAttribute as attribute to CustomAttributes"""
+        assert entry._name == 'customAttribute', 'Can only add customAttribute type'
         self.set_attrib(entry.key, entry.value)
         self._autosave()
 
 
 class MiscEntry(Entry):
     def __init__(self, name: str, key: str = None, value: str = None, **kwargs):
+        """ For various smaller types of entries. The `name` describes the type and can be
+        ['channel', 'context', 'customAttribute', 'group', 'groupEntry',
+        'binFileFormat', 'csvFileFormat', 'customFileFormat']"""
         super().__init__(**kwargs)
         self._name = strip(name)
         if key and value:
@@ -935,5 +923,7 @@ class MiscEntry(Entry):
 
 
 class CustomAttribute(MiscEntry):
+    """dummy class for reading from unisens.xml.
+    An actual CustomAttribute is stored as attribute to CustomAttributes not as entry."""
     def __new__(*args, **kwargs):
-        return MiscEntry('customAttribute', **kwargs)
+        return MiscEntry('customAttribute', *args, **kwargs)
