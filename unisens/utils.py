@@ -11,10 +11,6 @@ from types import GeneratorType
 import numpy as np
 from collections import OrderedDict
 
-try:
-    profile  # a hack for not having to remove the profile tags when not testing
-except NameError:
-    profile = lambda x: x  # pass-through decorator
 
 # a helper function for anti-camel case first letter
 lowercase = lambda s: s[:1].lower() + s[1:] if s else ''
@@ -241,7 +237,6 @@ def check4(name):
             raise ValueError('ID cannot contain :*?"<>|')
 
 
-# @profile
 def make_key(string: str):
     """
     A function that turns any string into a valid python variable string

@@ -19,11 +19,6 @@ from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
 from copy import deepcopy
 
-try:
-    profile  # a hack for not having to remove the profile tags when not testing
-except NameError:
-    profile = lambda x: x  # pass-through decorator
-
 
 def get_module(name):
     try:
@@ -63,7 +58,6 @@ class Entry(ABC):
     def __repr__(self):
         return "<{}({})>".format(self._name, self.attrib)
 
-    # @profile
     def __init__(self, attrib=None, parent='.', **kwargs):
 
         if attrib is None:
@@ -78,7 +72,6 @@ class Entry(ABC):
             self.set_attrib(key, kwargs[key])
         self._autosave()
 
-    # @profile
     def __contains__(self, item):
         if item in self.__dict__: return True
         if make_key(item) in self.__dict__: return True
@@ -88,7 +81,6 @@ class Entry(ABC):
         except:
             return False
 
-    # @profile
     def __setattr__(self, name: str, value: str):
         """
         Allows settings of attributes via .name = value.
@@ -101,7 +93,6 @@ class Entry(ABC):
                 isinstance(value, (int, float, bool, bytes, str)):
             self.set_attrib(name, value)
 
-    # @profile
     def __getattr__(self, key):
         if key == "__setstate__":
             raise AttributeError(key)
@@ -115,7 +106,6 @@ class Entry(ABC):
         except KeyError:
             return self.__getattribute__(key)
 
-    # @profile
     def __getitem__(self, key):
         if isinstance(key, str):
             i, key = self._get_index(key)
@@ -147,7 +137,6 @@ class Entry(ABC):
         elif hasattr(self, '_readonly') and self._readonly:
             raise IOError(f'Read only, can\'t write to {self._folder}.')
 
-    # @profile
     def _get_index(self, id_or_name: str, raises: bool = True) -> Tuple[int, str]:
         """
         Receive the index and key-name of an object.
@@ -265,7 +254,6 @@ class Entry(ABC):
             copy = deepcopy(self)
         return copy
 
-    # @profile
     def add_entry(self, entry: Entry, stack: bool = True):
         """
         Add an subentry to this entry
@@ -316,7 +304,6 @@ class Entry(ABC):
         self._autosave()
         return self
 
-    # @profile
     def remove_entry(self, name: str):
         """
         Removes a subentry by name.
@@ -332,7 +319,6 @@ class Entry(ABC):
         del self.__dict__[key]
         return self
 
-    # @profile
     def set_attrib(self, name: str, value: str):
         """
         Set an attribute of this Entry
@@ -441,7 +427,6 @@ class FileEntry(Entry):
         id = self.attrib.get('id', 'None')
         return "<{}({})>".format(self._name, id)
 
-    # @profile
     def __init__(self, id, attrib=None, parent='.', **kwargs):
         super().__init__(attrib=attrib, parent=parent, **kwargs)
         if 'id' in self.attrib:
