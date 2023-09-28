@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import importlib
 import os, sys
+import warnings
 from abc import ABC
 from typing import List, Tuple
 
@@ -455,7 +456,7 @@ class SignalEntry(FileEntry):
     def __init__(self, id=None, attrib=None, parent='.', **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
 
-    def get_data(self) -> np.array:
+    def get_data(self, scaled: bool = True, return_type: str = None) -> np.array:
         """
         Will try to load the binary data using numpy.
         This might not always work as endianess can't be determined
@@ -474,6 +475,10 @@ class SignalEntry(FileEntry):
 
         """
 
+        if return_type is not None:
+            warnings.warn(f'The argument `return_type` has no effect and will be removed with the next release.',
+                          category=DeprecationWarning, stacklevel=2)
+
         if self.id.endswith('csv'):
             data = np.genfromtxt(self._filename, dtype=str, delimiter=self.csvFileFormat.separator)
             data = data.astype(float)
@@ -485,14 +490,15 @@ class SignalEntry(FileEntry):
         dtypestr = self.dataType.lower()
         dtype = np.__dict__.get(dtypestr, f'UNKOWN_DATATYPE: {dtypestr}')
         data = np.fromfile(self._filename, dtype=dtype)
-        if 'baseline' in self.attrib:
-            data = ((data - float(self.baseline)) * float(self.lsbValue))
-        elif self.lsbValue != 1:
-            data = (data * float(self.lsbValue))
+        if scaled:
+            if 'baseline' in self.attrib:
+                data = ((data - float(self.baseline)) * float(self.lsbValue))
+            elif self.lsbValue != 1:
+                data = (data * float(self.lsbValue))
         return data.reshape([-1, n_channels]).T
 
     def set_data(self, data: np.ndarray, sampleRate: float = None, dataType: str = None,
-                 ch_names: list = None, unit: str = None,
+                 ch_names: list = None, unit: str = None, scaled: bool = None,
                  lsbValue: float = None, adcZero: int = None,
                  adcResolution: int = None, baseline: int = None,
                  comment: str = None, contentClass: str = None,
@@ -533,6 +539,12 @@ class SignalEntry(FileEntry):
         **kwargs : TYPE
             DESCRIPTION.
         """
+        if scaled is None:
+            warnings.warn(f'New option `scaled` matches the option in `get_data`. '
+                          f'Likewise scaling will be the default with the next release.',
+                          category=DeprecationWarning, stacklevel=2)
+            scaled = False
+
         self._check_readonly()
 
         data = np.atleast_2d(np.array(data))
@@ -563,10 +575,11 @@ class SignalEntry(FileEntry):
             fileFormat = MiscEntry('binFileFormat', key='endianess', value=order)
             self.add_entry(fileFormat)
 
-            if 'baseline' in self.attrib:
-                data = (data / float(self.lsbValue)) + float(self.baseline)
-            elif self.lsbValue != 1:
-                data = data / float(self.lsbValue)
+            if scaled:
+                if 'baseline' in self.attrib:
+                    data = (data / float(self.lsbValue)) + float(self.baseline)
+                elif self.lsbValue != 1:
+                    data = data / float(self.lsbValue)
 
             if 'int' in dataType:
                 data = np.round(data, 10)

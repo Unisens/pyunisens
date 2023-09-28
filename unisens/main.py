@@ -23,6 +23,7 @@ todo: coherent attribute setting in __init__ and set_data()
 import os
 import logging
 import datetime
+import warnings
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
 from .entry import Entry, FileEntry, ValuesEntry, SignalEntry, MiscEntry
@@ -219,6 +220,16 @@ class Unisens(Entry):
         et = ET.ElementTree(element)
         et.write(file, xml_declaration=True, default_namespace='',
                  encoding='utf-8')
+        return self
+
+    def read_unisens(self, folder: str, filename='unisens.xml') -> Entry:
+        warnings.warn(f'{__name__} is deprecated and will be removed with the '
+                      f'next release. Please read your unisens file by calling'
+                      f' the Unisens class with folder and filename.',
+                      category=DeprecationWarning, stacklevel=2)
+        assert os.path.normpath(os.path.join(folder, filename)) == os.path.normpath(self._file), \
+            'Reading from one folder and attributing to another not possible.'
+        self._read_unisens()
         return self
 
     def _read_unisens(self):
