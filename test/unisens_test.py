@@ -426,7 +426,7 @@ class Testing(unittest.TestCase):
         folder = os.path.join(self.tmpdir, 'data', 'record1')
 
         u = Unisens(folder, makenew=True)
-        times = [[i * 100 + float(np.random.rand(1)), f'trigger {i}'] for i in range(15)]
+        times = [[i * 100 + float(np.random.rand()), f'trigger {i}'] for i in range(15)]
         event = EventEntry(id='triggers.csv', parent=u, separator=',', decimalSeparator='.')
         event.set_attrib('contentClass', 'trigger')
         event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
@@ -440,7 +440,7 @@ class Testing(unittest.TestCase):
         # now test with different separators
         folder = os.path.join(self.tmpdir, 'data', 'record2')
         u = Unisens(folder, makenew=True)
-        times = [[i * 100 + float(np.random.rand(1)), f'trigger {i}'] for i in range(15)]
+        times = [[i * 100 + float(np.random.rand()), f'trigger {i}'] for i in range(15)]
         event = EventEntry(id='triggers.csv', parent=u, separator=';', decimalSeparator=',')
         event.set_attrib('contentClass', 'trigger')
         event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
@@ -469,7 +469,7 @@ class Testing(unittest.TestCase):
         folder = os.path.join(self.tmpdir, 'data', 'record1')
 
         u = Unisens(folder, makenew=True)
-        times = [[i * 100 + float(np.random.rand(1)), f'trigger {i}'] for i in range(15)]
+        times = [[i * 100 + float(np.random.rand()), f'trigger {i}'] for i in range(15)]
         event = ValuesEntry(id='triggers.csv', parent=u, separator=',', decimalSeparator='.')
         event.set_attrib('contentClass', 'trigger')
         event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
@@ -483,7 +483,7 @@ class Testing(unittest.TestCase):
         # now test with different separators   
         folder = os.path.join(self.tmpdir, 'data', 'record2')
         u = Unisens(folder, makenew=True)
-        times = [[i * 100 + float(np.random.rand(1)), f'trigger {i}'] for i in range(15)]
+        times = [[i * 100 + float(np.random.rand()), f'trigger {i}'] for i in range(15)]
         event = ValuesEntry(id='triggers.csv', parent=u, separator=';', decimalSeparator=',')
         event.set_attrib('contentClass', 'trigger')
         event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
