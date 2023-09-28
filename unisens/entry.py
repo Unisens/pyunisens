@@ -779,7 +779,7 @@ class CustomEntry(FileEntry):
             with open(self._filename, 'r') as f:
                 data = f.read()
         elif dtype == 'image':
-            imageio = get_module('imageio')
+            imageio = get_module('imageio.v2')
             data = imageio.imread(self._filename)
 
         elif dtype == 'pickle':
