@@ -442,11 +442,12 @@ class FileEntry(Entry):
                 logging.warning('id should be a filename with extension ie. .bin')
             self._filename = os.path.join(self._folder, id)
             self.set_attrib('id', id)
+            # ensure subdirectories exist to write data
             if '/' in id or '\\' in id:
                 sub_folder = os.path.dirname(self._filename)
                 os.makedirs(sub_folder, exist_ok=True)
         else:
-            raise ValueError('id must be supplied')
+            raise ValueError('The id must be supplied if it is not yet set.')
         if isinstance(parent, Entry): parent.add_entry(self)
 
 
@@ -571,7 +572,7 @@ class SignalEntry(FileEntry):
             if 'int' in dataType:
                 data = np.round(data, 10)
             data_formatted = data.astype(dataType)
-            assert abs(np.sum(data-data_formatted)) < 1e-10, \
+            assert abs(np.sum(data - data_formatted)) < 1e-10, \
                 f"Can't format to dataType {dataType} without loss."
 
             # save data transposed because unisens reads rows*columns not columns*rows like numpy

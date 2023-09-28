@@ -146,11 +146,10 @@ class Unisens(Entry):
 
     def remove_entry(self, name: str):
         i, key = self._get_index(name)
-        entry = self._entries[i]
+        entry = self._entries.pop(i)
         for e_name, e in list(self.entries.items()):
             if e == entry:
                 del self.entries[e_name]
-        del self._entries[i]
         del self.__dict__[key]
         return self
 
