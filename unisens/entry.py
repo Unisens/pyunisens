@@ -900,7 +900,7 @@ class CustomAttributes(Entry):
             element.append(subelement)
         return element
 
-    def add_entry(self, entry: CustomAttribute):
+    def add_entry(self, entry: MiscEntry):
         """ When reading the unisens.xml file, each CustomAttribute is an entry (i.e. subelement)
         to CustomAttributes and only contains key and value.
         In contrast, pyunisens will save a CustomAttribute as attribute to CustomAttributes"""
@@ -925,4 +925,7 @@ class CustomAttribute(MiscEntry):
     """dummy class for reading from unisens.xml.
     An actual CustomAttribute is stored as attribute to CustomAttributes not as entry."""
     def __new__(*args, **kwargs):
+        warnings.warn("CustomAttribute will be removed in the next release. "
+                      "Use CustomAttributes.set_attrib('key', 'value') instead.",
+                      category=DeprecationWarning, stacklevel=2)
         return MiscEntry('customAttribute', *args, **kwargs)
