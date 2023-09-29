@@ -14,7 +14,7 @@ from typing import List, Tuple
 
 import numpy as np
 import logging
-from .utils import validkey, strip, lowercase, make_key, valid_filename, infer_dtype
+from .utils import validkey, strip, lowercase, make_key, valid_filename, infer_dtype, default_value_deprecator
 from .utils import read_csv, write_csv
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
@@ -457,6 +457,10 @@ class SignalEntry(FileEntry):
     def __init__(self, id=None, attrib=None, parent='.', **kwargs):
         super().__init__(id=id, attrib=attrib, parent=parent, **kwargs)
 
+    @default_value_deprecator(
+        arg_name='scaled', pos=1, msg='The argument `scaled` will switch its default '
+                                      'to False with the next release. Please specify'
+                                      ' `scaled=True` to preserve your results.')
     def get_data(self, scaled: bool = True, return_type: str = None) -> np.array:
         """
         Will try to load the binary data using numpy.
