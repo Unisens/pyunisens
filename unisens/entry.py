@@ -503,7 +503,7 @@ class SignalEntry(FileEntry):
         return data.reshape([-1, n_channels]).T
 
     def set_data(self, data: np.ndarray, sampleRate: float = None, dataType: str = None,
-                 ch_names: list = None, unit: str = None, scaled: bool = None,
+                 ch_names: list = None, unit: str = None,
                  lsbValue: float = None, adcZero: int = None,
                  adcResolution: int = None, baseline: int = None,
                  comment: str = None, contentClass: str = None,
@@ -511,9 +511,16 @@ class SignalEntry(FileEntry):
                  decimalSeparator: str = '.', separator: str = ';', **kwargs):
         """
         Set the data that is connected to this SignalEntry.
+        The decision between binary and csv output is made with the 'id' from initialization.
+
+        binary: Data will be stored after formatting to dataType. Please ensure that formatting is possible without
+        loss of information. Scaling (with lsbValue and baseline) is only supported for reading.
         The data will in any case be saved with Endianness LITTLE,
         as this is the default for numpy. Data will be saved using
         numpy binary data output.
+
+        csv: Similar to ValuesEntry except that the data is expected to be
+         consecutive and thus not indexed.
 
         Parameters
         ----------
@@ -544,11 +551,6 @@ class SignalEntry(FileEntry):
         **kwargs : TYPE
             DESCRIPTION.
         """
-        if scaled is None:
-            warnings.warn(f'New option `scaled` matches the option in `get_data`. '
-                          f'Likewise scaling will be the default with the next release.',
-                          category=DeprecationWarning, stacklevel=2)
-            scaled = False
 
         self._check_readonly()
 
@@ -579,12 +581,6 @@ class SignalEntry(FileEntry):
             order = sys.byteorder.upper()  # endianess
             fileFormat = MiscEntry('binFileFormat', key='endianess', value=order)
             self.add_entry(fileFormat)
-
-            if scaled:
-                if 'baseline' in self.attrib:
-                    data = (data / float(self.lsbValue)) + float(self.baseline)
-                elif self.lsbValue != 1:
-                    data = data / float(self.lsbValue)
 
             if 'int' in dataType:
                 data = np.round(data, 10)

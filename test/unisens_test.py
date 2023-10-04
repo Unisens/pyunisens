@@ -383,10 +383,10 @@ class Testing(unittest.TestCase):
             signal = SignalEntry(id='signal.bin', parent=u)
             signal.set_attrib('test', 'asd')
             signal.set_data(data1, sampleRate=500, lsbValue=1, unit='mV',
-                            comment='Test', contentClass='EEG', scaled=False)
+                            comment='Test', contentClass='EEG')
             u.save()
             u1 = Unisens(folder)
-            data2 = u1['signal.bin'].get_data()
+            data2 = u1['signal.bin'].get_data(True)
             np.testing.assert_almost_equal(data1, data2)
 
         folder = os.path.join(self.tmpdir, 'data', 'record')
@@ -798,38 +798,56 @@ class Testing(unittest.TestCase):
         unisens = Unisens(os.path.join(os.path.dirname(__file__), 'Example_003'))
 
         signal = unisens.acc_textile_50_bin
-        original_data = signal.get_data()
-        data = original_data[:, :48]
+        original_data = signal.get_data(scaled=True)
+        data_scaled = original_data[:, :48]
+        data_unscaled = signal.get_data(scaled=False)[:, :48]
+        assert np.any(data_unscaled != data_scaled)
 
         from copy import copy
         kwargs: dict = copy(signal.attrib)
         original_sample_rate = kwargs.pop('sampleRate', None)
-        kwargs['sampleRate'] = float(1/3600)
+        kwargs['sampleRate'] = float(1 / 3600)
         kwargs.pop('id', None)
         ch_names = ['tick', 'trick', 'track']
 
         for ending in ['.csv', '.bin']:
             name = 'test_signal' + ending
             for f in ['a_', 'b_', 'c_']:
-                file = f+name
+                file = f + name
                 if hasattr(unisens, file):
                     unisens.remove_entry(file)
 
             kwargs.update({'dataType': 'int16', 'lsbValue': '0.00294', 'baseline': '2048'})
-            s = SignalEntry(id='a_'+name, parent=unisens)
-            s.set_data(data, ch_names=ch_names, scaled=True, **kwargs)
-            data_return = s.get_data()
-            assert np.all(data == data_return)
+            s = SignalEntry(id='a_' + name, parent=unisens)
+            s.set_data(data_unscaled, ch_names=ch_names, **kwargs)
+            data_return = s.get_data(scaled=False)
+            assert np.all(data_unscaled == data_return)
+            data_return1 = s.get_data(scaled=True)
+            if ending == '.bin':
+                assert np.all(data_scaled == data_return1)
+                assert np.all(((data_unscaled - 2048) * 0.00294) == data_return1)
+            else:
+                assert np.all(data_return == data_return1)
+
             kwargs.update({'dataType': 'float64', 'lsbValue': 1, 'baseline': '0'})
-            s2 = SignalEntry(id='b_'+name, parent=unisens, **kwargs)
-            s2.set_data(data, ch_names=ch_names, scaled=True)
-            data_return2 = s2.get_data()
-            assert np.all(data == data_return2)
+            s2 = SignalEntry(id='b_' + name, parent=unisens, **kwargs)
+            s2.set_data(data_unscaled, ch_names=ch_names)
+            data_return2 = s2.get_data(scaled=False)
+            assert np.all(data_unscaled == data_return2)
+            data_return21 = s2.get_data(scaled=True)
+            assert np.all(data_unscaled == data_return21)
+
             kwargs.update({'dataType': 'uint16', 'lsbValue': '0.00098', 'baseline': '6426'})
-            s3 = SignalEntry(id='c_'+name, parent=unisens, attrib=kwargs)
-            s3.set_data(data, ch_names=ch_names, scaled=True)
-            data_return3 = s3.get_data()
-            assert np.all(data == data_return3)
+            s3 = SignalEntry(id='c_' + name, parent=unisens, attrib=kwargs)
+            s3.set_data(abs(data_unscaled), ch_names=ch_names)
+            data_return3 = s3.get_data(scaled=False)
+            assert np.all(abs(data_unscaled) == data_return3)
+            data_return31 = s3.get_data(scaled=True)
+            if ending == '.bin':
+                assert np.any(data_scaled != data_return31)  # different scaling
+                assert np.all(((abs(data_unscaled) - 6426) * 0.00098) == data_return31)
+            else:
+                assert np.all(abs(data_unscaled) == data_return31)
 
 
 if __name__ == '__main__':
