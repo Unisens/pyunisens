@@ -928,4 +928,4 @@ class CustomAttribute(MiscEntry):
         warnings.warn("CustomAttribute will be removed in the next release. "
                       "Use CustomAttributes.set_attrib('key', 'value') instead.",
                       category=DeprecationWarning, stacklevel=2)
-        return MiscEntry('customAttribute', *args, **kwargs)
+        return MiscEntry('customAttribute', *args[1:], **kwargs)

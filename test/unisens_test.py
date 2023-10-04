@@ -5,6 +5,10 @@ Created on Sat Jan  4 16:37:07 2020
 @author: skjerns
 """
 import os
+import warnings
+
+import pytest
+
 from unisens import CustomEntry, ValuesEntry, EventEntry, SignalEntry
 from unisens import MiscEntry, CustomAttributes, Unisens, FileEntry
 from unisens import make_key
@@ -848,6 +852,52 @@ class Testing(unittest.TestCase):
                 assert np.all(((abs(data_unscaled) - 6426) * 0.00098) == data_return31)
             else:
                 assert np.all(abs(data_unscaled) == data_return31)
+
+    def test_deprecation(self):
+        # CustomAttribute
+        from unisens import CustomAttribute
+        #warnings.filterwarnings('error')
+        ca = CustomAttributes()
+        # expected usage
+        #with pytest.raises(DeprecationWarning) as dep:
+        with pytest.warns(DeprecationWarning) as dep:
+            att = CustomAttribute(key='height2', value='2,05m') # doesn't work with 'self' in args
+        assert att.height2 == '2,05m'
+        #ca.add_entry(att) # doesn't work, needs att.key='height' etc.
+        #assert ca.height2 == '2,05m'
+
+        # faulty useage
+        """with pytest.warns(DeprecationWarning) as dep:
+            att2 = CustomAttribute(name='height', value='2,05m') # got multiple values for argument 'name'
+        assert not hasattr(att2, 'height')
+        assert att2.value == '2,05m'
+        assert att2._name == 'height'"""
+
+        # desired usage
+        ca.set_attrib(name='height1', value='1,73m')
+        assert ca.height1 == '1,73m'
+
+        # return_type
+        u = Unisens(os.path.join(os.path.dirname(__file__), 'Example_001'))
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            signal1 = u.ecg200_bin.get_data(scaled=True)
+            #with pytest.warns(DeprecationWarning) as dep:
+            with pytest.raises(DeprecationWarning) as d:
+                u.ecg200_bin.get_data(scaled=True, return_type='numpy')
+            assert str(d.value) == 'The argument `return_type` has no effect and will be removed with the next release.'
+        signal2 = u.ecg200_bin.get_data(scaled=True, return_type='numpy')
+        assert np.all(signal1 == signal2)
+
+        # scaled
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            with pytest.raises(DeprecationWarning) as d:
+                u.ecg200_bin.get_data()
+            assert str(d.value) == 'The argument `scaled` will switch its default to False with the next release. ' \
+                                   'Please specify `scaled=True` to preserve your results.'
+            signal3 = u.ecg200_bin.get_data(scaled=False)
+            assert np.all(signal3[:, :5] * float(u.ecg200_bin.lsbValue) == signal1[:, :5])
 
 
 if __name__ == '__main__':
