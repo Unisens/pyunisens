@@ -897,6 +897,42 @@ class Testing(unittest.TestCase):
             signal3 = u.ecg200_bin.get_data(scaled=False)
             assert np.all(signal3[:, :5] * float(u.ecg200_bin.lsbValue) == signal1[:, :5])
 
+    def test_read_unisens_deprecation(self):
+        u_folder = os.path.join(os.path.dirname(__file__), 'Example_001')
+
+        # unisens cannot be read twice -> use makenew or a different filepath
+
+        # behaviour to remove
+        u0 = Unisens(os.path.join(os.path.dirname(__file__), 'Example_002'))  # read first file here
+        assert not hasattr(u0, 'customAttributes')  # data from first file
+        assert u0.timestampStart == '2008-07-04T13:27:57'
+        with pytest.deprecated_call() as dep:
+            u0.read_unisens(folder=u_folder)  # read second file
+        assert str(dep.list[-1].message) == '`read_unisens` is deprecated and will be removed with the next release. Please read your unisens file by calling Unisens(folder=folder, filename=filename).'
+        assert u0.customAttributes.height == '1.74m'  # data from second file
+        assert u0.timestampStart == '2008-07-08T13:32:51'
+        assert os.path.basename(u0._folder) == 'Example_002'  # path from first file!
+
+        u1 = Unisens(u_folder, filename='new_unisens.xml')  # a new file here
+        with pytest.deprecated_call() as dep:
+            u1.read_unisens(folder=u_folder)  # read different old file
+        assert str(dep.list[-1].message) == '`read_unisens` is deprecated and will be removed with the next release. Please read your unisens file by calling Unisens(folder=folder, filename=filename).'
+        assert os.path.basename(u1._file) == 'new_unisens.xml'
+        assert u1.customAttributes.height == '1.74m'  # data from old file
+
+        u2 = Unisens(u_folder, makenew=True)  # set makenew
+        with pytest.warns(DeprecationWarning) as dep:
+            u2.read_unisens(folder=u_folder)  # read actually existing file
+        assert str(dep.list[-1].message) == '`read_unisens` is deprecated and will be removed with the next release. Please read your unisens file by calling Unisens(folder=folder, filename=filename).'
+        assert u2._file == os.path.join(u_folder, 'unisens.xml')
+        assert u2.customAttributes.height == '1.74m'  # data from existing file
+
+        # no deprecation at initialization
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            u3 = Unisens(u_folder, makenew=False)
+        assert u3.customAttributes.height == '1.74m'
+
 
 if __name__ == '__main__':
     unittest.main()

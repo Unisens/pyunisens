@@ -80,7 +80,9 @@ class Unisens(Entry):
 
         if os.path.isfile(self._file) and not makenew:
             logging.debug('loading unisens.xml from {}'.format(self._file))
-            self._read_unisens()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                self.read_unisens()
         else:
             logging.debug('New unisens.xml will be created at {}'.format(self._file))
             if not timestampStart:
@@ -221,29 +223,28 @@ class Unisens(Entry):
                  encoding='utf-8')
         return self
 
-    def read_unisens(self, folder: str, filename='unisens.xml') -> Entry:
-        warnings.warn(f'{__name__} is deprecated and will be removed with the '
-                      f'next release. Please read your unisens file by calling'
-                      f' the Unisens class with folder and filename.',
-                      category=DeprecationWarning, stacklevel=2)
-        assert os.path.normpath(os.path.join(folder, filename)) == os.path.normpath(self._file), \
-            'Reading from one folder and attributing to another not possible.'
-        self._read_unisens()
-        return self
-
-    def _read_unisens(self):
+    def read_unisens(self, folder: str = None, filename='unisens.xml') -> Entry:
         """
         Loads an XML Unisens file into this Unisens object.
         That means, self.attrib and self.children are added
         as well as tag, tail and text
         """
-        if not os.path.isfile(self._file):
-            raise FileNotFoundError('{} does not exist'.format(self._file))
+        warnings.warn(f'`read_unisens` is deprecated and will be removed with the '
+                      f'next release. Please read your unisens file by calling'
+                      f' Unisens(folder=folder, filename=filename).',
+                      category=DeprecationWarning, stacklevel=2)
+        # Saving data from one unisens file to another is still possible with Unisens.save() .
+        if folder is None:
+            file = self._file
+        else:
+            file = os.path.normpath(os.path.join(folder, filename))
+        if not os.path.isfile(file):
+            raise FileNotFoundError('{} does not exist'.format(file))
 
         try:
-            root = ET.parse(self._file).getroot()
+            root = ET.parse(file).getroot()
         except Exception as e:
-            print('Error reading {}'.format(self._file))
+            print('Error reading {}'.format(file))
             raise e
 
         # copy all attributes from root to this Unisens object
@@ -268,4 +269,4 @@ class Unisens(Entry):
         entries = zip(keys, self.entries.values())
         self.__dict__.update(entries)
 
-        return
+        return self
