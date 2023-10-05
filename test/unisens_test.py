@@ -856,23 +856,21 @@ class Testing(unittest.TestCase):
     def test_deprecation(self):
         # CustomAttribute
         from unisens import CustomAttribute
-        #warnings.filterwarnings('error')
         ca = CustomAttributes()
         # expected usage
-        #with pytest.raises(DeprecationWarning) as dep:
         with pytest.warns(DeprecationWarning) as dep:
-            att = CustomAttribute(key='height2', value='2,05m') # doesn't work with 'self' in args
+            att = CustomAttribute(height2='2,05m')
         assert att.height2 == '2,05m'
-        #ca.add_entry(att) # doesn't work, needs att.key='height' etc.
-        #assert ca.height2 == '2,05m'
+        with pytest.raises(AttributeError):
+            ca.add_entry(att)
+        assert not hasattr(ca, 'height2')
 
-        # faulty useage
-        """with pytest.warns(DeprecationWarning) as dep:
-            att2 = CustomAttribute(name='height', value='2,05m') # got multiple values for argument 'name'
-        assert not hasattr(att2, 'height')
-        assert att2.value == '2,05m'
-        assert att2._name == 'height'"""
-
+        with pytest.warns(DeprecationWarning) as dep:
+            att1 = CustomAttribute()
+        att1.set_attrib('key', 'height2')
+        att1.set_attrib('value', '2,05m')
+        ca.add_entry(att1)
+        assert ca.height2 == '2,05m'
         # desired usage
         ca.set_attrib(name='height1', value='1,73m')
         assert ca.height1 == '1,73m'
