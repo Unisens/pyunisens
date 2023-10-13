@@ -903,6 +903,8 @@ class Testing(unittest.TestCase):
                 ve1.set_data(data=signal2[:20], sampleRate=float(u.ecg200_bin.sampleRate))
             assert str(d.value) == 'Channel naming will be mandatory with the next release. ' \
                                    'Please provide a list of channel names with set_data().'
+            os.remove('test_signal.bin')
+            os.remove('test_signal.csv')
 
     def test_read_unisens_deprecation(self):
         u_folder = os.path.join(os.path.dirname(__file__), 'Example_001')
