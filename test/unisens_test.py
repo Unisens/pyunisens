@@ -5,16 +5,18 @@ Created on Sat Jan  4 16:37:07 2020
 @author: skjerns
 """
 import os
+import warnings
+
+import pytest
+
 from unisens import CustomEntry, ValuesEntry, EventEntry, SignalEntry
 from unisens import MiscEntry, CustomAttributes, Unisens, FileEntry
-from unisens import CsvFileEntry
+from unisens import make_key
 
 import unittest
 import shutil
-import tempfile
 import numpy as np
 import pickle
-
 
 
 def elements_equal(e1, e2):
@@ -27,65 +29,65 @@ def elements_equal(e1, e2):
 
 
 class Testing(unittest.TestCase):
-    
-    
-    def setUp(self):
-        self.tmpdir = tempfile.mkdtemp(prefix='unisens')
-        
-    def tearDown(self):
-        shutil.rmtree(self.tmpdir)
-    
+    tmpdir = os.path.join(os.path.dirname(__file__), 'tmp')
+
+    @classmethod
+    def setUp(cls):
+        os.makedirs(cls.tmpdir, exist_ok=True)
+
+    @classmethod
+    def tearDown(cls):
+        shutil.rmtree(cls.tmpdir)
+
     def test_unisens_creation(self):
         folder = os.path.join(self.tmpdir, 'data', 'record1')
-        
+
         u = Unisens(folder)
         u.save()
         self.assertTrue(os.path.isdir(folder))
         self.assertTrue(os.path.isfile(os.path.join(folder, 'unisens.xml')))
-        
+
         u.key1 = 'value1'
         u.set_attrib('key2', 'value2')
         u.set_attrib('key3', 3)
-        
-        for i in range(2): # run it once, then save and reload and run again
+
+        for i in range(2):  # run it once, then save and reload and run again
             self.assertTrue(hasattr(u, 'key1'))
             self.assertTrue(hasattr(u, 'key2'))
             self.assertTrue(hasattr(u, 'key3'))
-            
+
             self.assertEqual(u.attrib['key1'], 'value1')
             self.assertEqual(u.attrib['key2'], 'value2')
             self.assertEqual(u.attrib['key3'], 3)
-            
+
             self.assertEqual(u.key1, 'value1')
             self.assertEqual(u.key2, 'value2')
             self.assertEqual(u.key3, 3)
-            
+
             u.save()
-    
-        
+
     def test_unisens_overwrite_load(self):
         folder = os.path.join(self.tmpdir, 'data', 'record2')
         u = Unisens(folder)
         u.key1 = 'value1'
         u.save()
         u = Unisens(folder)
-        
+
         self.assertTrue(hasattr(u, 'key1'))
         self.assertEqual(u.key1, 'value1')
         self.assertEqual(u.attrib['key1'], 'value1')
-        
+
         u = Unisens(folder, makenew=True)
         self.assertFalse(hasattr(u, 'key1'))
-        self.assertNotIn('key1', u.attrib)        
-        
-        
+        self.assertNotIn('key1', u.attrib)
+
     def test_entry_creation(self):
         folder = os.path.join(self.tmpdir, 'data', 'record2')
         for entrytype in [CustomEntry, ValuesEntry, SignalEntry, EventEntry]:
-            
-            with self.assertRaises(ValueError):
-                entry = entrytype()
-            
+            with self.assertRaises(ValueError) as e:
+                entrytype()
+            assert 'id must be supplied' in str(e.exception)
+
             entry = entrytype(parent=folder, id='test.csv')
             entry.set_attrib('key1', 'value1')
             entry.key2 = 'value2'
@@ -99,15 +101,14 @@ class Testing(unittest.TestCase):
             self.assertEqual(entry.attrib['id'], 'test.csv')
             self.assertEqual(entry.attrib['key1'], 'value1')
             self.assertEqual(entry.attrib['key2'], 'value2')
-            
+
             entry.remove_attr('key1')
             self.assertFalse(hasattr(entry, 'key1'))
             self.assertNotIn('key1', entry.attrib)
-            
+
         with self.assertRaises(TypeError):
             misc = MiscEntry()
 
-            
         misc = MiscEntry(name='test')
         self.assertEqual(misc._name, 'test')
         self.assertEqual(len(misc.attrib), 0)
@@ -121,15 +122,15 @@ class Testing(unittest.TestCase):
 
         # with self.assertRaises(TypeError):
         #     custom = CustomAttributes()
-            
-        custom = CustomAttributes(key = 'key1', value = 'value1')
+
+        custom = CustomAttributes(key='key1', value='value1')
         self.assertEqual(len(custom), 0)
         self.assertEqual(len(custom.attrib), 1)
         self.assertTrue(hasattr(custom, 'key1'))
         self.assertEqual(custom.key1, 'value1')
         custom.remove_attr('key1')
         self.assertEqual(len(custom.attrib), 0)
-        custom = CustomAttributes(key = 'key1', value = 'value1')
+        custom = CustomAttributes(key='key1', value='value1')
         custom.set_attrib('key2', 'value2')
         custom.set_attrib('key1', 'value2')
         self.assertTrue(hasattr(custom, 'key1'))
@@ -138,33 +139,31 @@ class Testing(unittest.TestCase):
         self.assertEqual(custom.key1, 'value2')
         self.assertEqual(custom.key2, 'value2')
 
-        
     def test_unisens_add_entr(self):
         folder = os.path.join(self.tmpdir, 'data', 'record')
         u = Unisens(folder, makenew=True)
-        
-        for i,entrytype in enumerate([CustomEntry, ValuesEntry,
-                                      SignalEntry, EventEntry]):
-            entry = entrytype(parent=folder, id='test'+str(i)+'.csv')
+
+        for i, entrytype in enumerate([CustomEntry, ValuesEntry,
+                                       SignalEntry, EventEntry]):
+            entry = entrytype(parent=folder, id='test' + str(i) + '.csv')
             entry.set_attrib('key1', 'value1')
             entry.key2 = 'value2'
             u.add_entry(entry)
             if entrytype == CustomEntry:
                 entry.set_data('test')
             else:
-                entry.set_data([[1,2,3],[1,2,3]])
+                entry.set_data([[1, 2, 3], [1, 2, 3]], sampleRate=256)
 
         self.assertEqual(len(u), 4)
         self.assertEqual(len(u.entries), 4)
         u.save()
-        
-        
+
         u = Unisens(folder)
         self.assertEqual(len(u), 4)
-        
+
         u = Unisens(folder, makenew=True)
         self.assertEqual(len(u), 0)
-        
+
         misc = MiscEntry(name='miscentry')
         misc.set_attrib('key2', 'value2')
         customattr = CustomAttributes('key1', 'value1')
@@ -173,29 +172,27 @@ class Testing(unittest.TestCase):
         self.assertEqual(len(u), 2)
 
     def test_unisens_autosave(self):
-        
+
         folder = os.path.join(self.tmpdir, 'data', 'record')
         u = Unisens(folder, makenew=True, autosave=True)
-        
-        for i,entrytype in enumerate([CustomEntry, ValuesEntry,
-                                      SignalEntry, EventEntry]):
+
+        for i, entrytype in enumerate([CustomEntry, ValuesEntry,
+                                       SignalEntry, EventEntry]):
             entry = entrytype(parent=folder, id=f'test{i}.csv')
-            with open(os.path.join(entry._folder, f'test{i}.csv'), 'w'):pass
+            with open(os.path.join(entry._folder, f'test{i}.csv'), 'w'): pass
             entry.set_attrib('key1', 'value1')
             entry.key2 = 'value2'
             u.add_entry(entry)
 
         self.assertEqual(len(u), 4)
         self.assertEqual(len(u.entries), 4)
-    
+
         u = Unisens(folder)
         self.assertEqual(len(u), 4)
-        
- 
-        
+
     def test_load_examples(self):
         example1 = os.path.join(os.path.dirname(__file__), 'Example_001')
-        
+
         u = Unisens(example1, readonly=True)
         self.assertEqual(len(u), 9)
         self.assertTrue(hasattr(u, 'entries'))
@@ -206,20 +203,19 @@ class Testing(unittest.TestCase):
         self.assertEqual(u.attrib['timestampStart'], '2008-07-08T13:32:51')
         self.assertEqual(u.attrib['measurementId'], 'Example_001')
 
-        
-        for name in ['customAttributes', 'imp200.bin', 'ecg200.bin', 
-                      'valid_signal.csv', 'trig_ref.csv', 'bp.csv',
-                      'trig_test_osea_dry.csv', 'picture.jpg', 'default_ecg']:
+        for name in ['customAttributes', 'imp200.bin', 'ecg200.bin',
+                     'valid_signal.csv', 'trig_ref.csv', 'bp.csv',
+                     'trig_test_osea_dry.csv', 'picture.jpg', 'default_ecg']:
             self.assertIn(name, u.entries)
-            
+
         entry = u[0]
         self.assertEqual(entry.height, '1.74m')
-        
+
         entry = u.entries['customAttributes']
         self.assertEqual(entry.weight, '73kg')
         self.assertEqual(entry.height, '1.74m')
         self.assertEqual(entry.gender, 'male')
-        
+
         entry = u.entries['imp200.bin']
         self.assertEqual(entry.adcResolution, '16')
         self.assertEqual(entry.comment, 'Electrode Impedance')
@@ -230,11 +226,10 @@ class Testing(unittest.TestCase):
         self.assertEqual(entry.sampleRate, '200')
         self.assertEqual(entry.unit, 'Ohm')
         self.assertEqual(entry.binFileFormat.endianess, 'LITTLE')
-        self.assertEqual(entry.channel[0].name, 'imp_left') 
-        self.assertEqual(entry.channel[1].name, 'imp_right') 
+        self.assertEqual(entry.channel[0].name, 'imp_left')
+        self.assertEqual(entry.channel[1].name, 'imp_right')
         self.assertEqual(len(entry.channel), 2)
 
-        
         entry = u.entries['ecg200.bin']
         self.assertEqual(entry.adcResolution, '16')
         self.assertEqual(entry.comment, 'Filtered ECG Data 200Hz, Bandpass 3rd order Butterworth 0.5-35')
@@ -245,17 +240,17 @@ class Testing(unittest.TestCase):
         self.assertEqual(entry.sampleRate, '200')
         self.assertEqual(entry.unit, 'V')
         self.assertEqual(entry.binFileFormat.endianess, 'LITTLE')
-        self.assertEqual(entry.channel[0].name, 'dry electrodes') 
-        self.assertEqual(entry.channel[1].name, 'ref1') 
+        self.assertEqual(entry.channel[0].name, 'dry electrodes')
+        self.assertEqual(entry.channel[1].name, 'ref1')
         self.assertEqual(len(entry.channel), 3)
-        
+
         entry = u.entries['valid_signal.csv']
         self.assertEqual(entry.id, 'valid_signal.csv')
         self.assertEqual(entry.comment, 'Valid signal regions for evaluation')
         self.assertEqual(entry.sampleRate, '1')
         self.assertEqual(entry.typeLength, '1')
-        self.assertEqual(entry.csvFileFormat.decimalSeparator, '.') 
-        self.assertEqual(entry.csvFileFormat.separator, ';') 
+        self.assertEqual(entry.csvFileFormat.decimalSeparator, '.')
+        self.assertEqual(entry.csvFileFormat.separator, ';')
         self.assertEqual(len(entry), 1)
 
         entry = u.entries['trig_ref.csv']
@@ -265,19 +260,20 @@ class Testing(unittest.TestCase):
         self.assertEqual(entry.typeLength, '1')
         self.assertEqual(entry.source, 'Padsy')
         self.assertEqual(entry.contentClass, 'TRIGGER')
-        self.assertEqual(entry.csvFileFormat.decimalSeparator, '.') 
-        self.assertEqual(entry.csvFileFormat.separator, ';') 
+        self.assertEqual(entry.csvFileFormat.decimalSeparator, '.')
+        self.assertEqual(entry.csvFileFormat.separator, ';')
         self.assertEqual(len(entry), 1)
 
         entry = u.entries['trig_test_osea_dry.csv']
         self.assertEqual(entry.id, 'trig_test_osea_dry.csv')
-        self.assertEqual(entry.comment, 'test qrs trigger list, 200Hz, done with osea on dry electrodes (ecg200.bin:dry electrodes)')
+        self.assertEqual(entry.comment,
+                         'test qrs trigger list, 200Hz, done with osea on dry electrodes (ecg200.bin:dry electrodes)')
         self.assertEqual(entry.sampleRate, '200')
         self.assertEqual(entry.typeLength, '1')
         self.assertEqual(entry.source, 'osea')
         self.assertEqual(entry.contentClass, 'TRIGGER')
-        self.assertEqual(entry.csvFileFormat.decimalSeparator, '.') 
-        self.assertEqual(entry.csvFileFormat.separator, ';')    
+        self.assertEqual(entry.csvFileFormat.decimalSeparator, '.')
+        self.assertEqual(entry.csvFileFormat.separator, ';')
         self.assertEqual(len(entry), 1)
 
         entry = u.entries['bp.csv']
@@ -287,10 +283,10 @@ class Testing(unittest.TestCase):
         self.assertEqual(entry.dataType, 'double')
         self.assertEqual(entry.unit, 'mmHg')
         self.assertEqual(entry.contentClass, 'RR')
-        self.assertEqual(entry.csvFileFormat.decimalSeparator, '.') 
-        self.assertEqual(entry.csvFileFormat.separator, ';')    
-        self.assertEqual(entry.channel[0].name, 'systolisch') 
-        self.assertEqual(entry.channel[1].name, 'diastolisch') 
+        self.assertEqual(entry.csvFileFormat.decimalSeparator, '.')
+        self.assertEqual(entry.csvFileFormat.separator, ';')
+        self.assertEqual(entry.channel[0].name, 'systolisch')
+        self.assertEqual(entry.channel[1].name, 'diastolisch')
         self.assertEqual(len(entry), 3)
         self.assertEqual(len(entry.channel), 2)
 
@@ -307,9 +303,8 @@ class Testing(unittest.TestCase):
         self.assertEqual(len(entry.groupEntry), 2)
         self.assertEqual(len(entry), 2)
 
-        
-        # check if loading and saving will reproduce the same tree
     def test_load_and_save(self):
+        # check if loading and saving will reproduce the same tree
         example1 = os.path.join(os.path.dirname(__file__), 'Example_001')
         example2 = os.path.join(os.path.dirname(__file__), 'Example_002')
         example3 = os.path.join(os.path.dirname(__file__), 'Example_003')
@@ -317,105 +312,102 @@ class Testing(unittest.TestCase):
             u = Unisens(example, readonly=True)
             entry = MiscEntry('group')
             u1 = u.copy()
-            u1._readonly=False
+            u1._readonly = False
             u1.add_entry(entry)
             u1.save(filename='test.xml')
             u2 = Unisens(folder=u1._folder, filename='test.xml')
             self.assertTrue(elements_equal(u1.to_element(), u2.to_element()))
             u2.add_entry(MiscEntry('binFileFormat'))
             u2.save(filename='test.xml')
-            u2 = Unisens(folder=u1._folder,filename='test.xml')
+            u2 = Unisens(folder=u1._folder, filename='test.xml')
             with self.assertRaises(AssertionError):
                 elements_equal(u1.to_element(), u2.to_element())
-
-
 
     def test_load_data(self):
         example1 = os.path.join(os.path.dirname(__file__), 'Example_001')
         u = Unisens(example1, readonly=True)
         signal = u['imp200.bin']
-        data = signal.get_data()       
-        self.assertEqual(len(data),2)
+        data = signal.get_data()
+        self.assertEqual(len(data), 2)
         self.assertEqual(data.size, 1817200)
         self.assertEqual(data.min(), 1)
         self.assertEqual(data.max(), 32767)
-        data = signal.get_data(scaled=False)       
-        self.assertEqual(len(data),2)
+        assert 'baseline' not in signal.attrib
+        signal.set_attrib('baseline', 5)
+        data = signal.get_data()
+        self.assertEqual(len(data), 2)
         self.assertEqual(data.size, 1817200)
-        self.assertEqual(data.min(), 1)
-        self.assertEqual(data.max(), 32767)
-        
+        self.assertEqual(data.min(), -4)
+        self.assertEqual(data.max(), 32762)
+
         signal = u['ecg200.bin']
-        data = signal.get_data()       
+        data = signal.get_data()
         self.assertEqual(len(data), 3)
         self.assertEqual(data.size, 2725800)
         self.assertEqual(data.min(), -0.083329024)
         self.assertEqual(data.max(), 0.08332648100000001)
-        data = signal.get_data(scaled=False)       
+        assert signal.lsbValue == '2.543E-6'
+        signal.set_attrib('lsbValue', '1')
+        data = signal.get_data()
         self.assertEqual(data.size, 2725800)
         self.assertEqual(data.min(), -32768)
         self.assertEqual(data.max(), 32767)
-        
+
         events = u['valid_signal.csv']
-        data = events.get_data(mode='list')       
+        data = events.get_data(mode='list')
         self.assertEqual(len(data), 2)
         self.assertEqual(data[0], [10, '('])
         self.assertEqual(data[1], [4521, ')'])
-        
-        data = events.get_data(mode='numpy')       
+
+        data = events.get_data(mode='numpy')
         self.assertEqual(len(data), 2)
         self.assertEqual(data[0][0], '10')
         self.assertEqual(data[1][0], '4521')
-        
-        data = events.get_data(mode='pd')       
+
+        data = events.get_data(mode='pd')
         self.assertEqual(len(data), 2)
         self.assertEqual(data[0][0], 10)
         self.assertEqual(data[0][1], 4521)
-        
+
         custom = u['picture.jpg']
-        data = custom.get_data(dtype='binary')       
+        data = custom.get_data(dtype='binary')
         self.assertEqual(len(data), 724116)
-        data = custom.get_data(dtype='image')       
+        data = custom.get_data(dtype='image')
         data = np.asarray(data)
         self.assertEqual(data.shape, (1463, 1388, 3))
-        
+
         self.assertEqual('Unisens: Example_001(0:00:00, 9 entries)', str(u))
-
-   
-
 
     def test_save_signalentry(self):
         folder = os.path.join(self.tmpdir, 'data', 'record5')
 
         for dtype in ['int16', 'uint8', 'float', 'int32']:
             u = Unisens(folder, makenew=True)
-            data1 = (np.random.rand(5,500)*100).astype(dtype)
+            data1 = (np.random.rand(5, 500) * 100).astype(dtype)
             signal = SignalEntry(id='signal.bin', parent=u)
             signal.set_attrib('test', 'asd')
-            signal.set_data(data1, sampleRate=500, lsbValue=1, unit='mV', 
+            signal.set_data(data1, sampleRate=500, lsbValue=1, unit='mV',
                             comment='Test', contentClass='EEG')
             u.save()
             u1 = Unisens(folder)
-            data2 = u1['signal.bin'].get_data()
+            data2 = u1['signal.bin'].get_data(True)
             np.testing.assert_almost_equal(data1, data2)
-        
+
         folder = os.path.join(self.tmpdir, 'data', 'record')
         u = Unisens(folder, makenew=True)
-        
-        
+
     def test_save_customtypes(self):
         folder = os.path.join(self.tmpdir, 'data', 'customtypes')
         from collections import OrderedDict
         u = Unisens(folder, makenew=True)
         image = np.random.randint(0, 128, (512, 512, 3), dtype=np.uint8)
-        data = OrderedDict({'test':'test', 'asdv': '2345', 'adfg':['3','34','234']})
+        data = OrderedDict({'test': 'test', 'asdv': '2345', 'adfg': ['3', '34', '234']})
         text = 'asd,123;456\qwe,678;678'
-        
+
         image_exts = ['.jpeg', '.jpg', '.bmp', '.png', '.tif', '.gif']
         for ext in image_exts:
             custom = CustomEntry(f'image{ext}', parent=u)
             custom.set_data(image)
-        
 
         CustomEntry('data.npy', parent=u).set_data(image)
         CustomEntry('pickle.pkl', parent=u).set_data(data)
@@ -423,7 +415,7 @@ class Testing(unittest.TestCase):
         CustomEntry('text.txt', parent=u).set_data(text)
         CustomEntry('text.csv', parent=u).set_data(text)
         u.save()
-        
+
         u = Unisens(folder)
         np.testing.assert_array_equal(u['image.png'].get_data(), image)
         np.testing.assert_array_equal(u['image.bmp'].get_data(), image)
@@ -434,16 +426,13 @@ class Testing(unittest.TestCase):
         np.testing.assert_array_equal(u['data.npy'].get_data(), image)
         self.assertDictEqual(u['pickle.pkl'].get_data(), data)
 
-        
     def test_save_csvetry(self):
-        self.tmpdir = tempfile.mkdtemp(prefix='unisens')
-
         folder = os.path.join(self.tmpdir, 'data', 'record1')
-        
+
         u = Unisens(folder, makenew=True)
-        times = [[i*100 + float(np.random.rand(1)), f'trigger {i}'] for i in range(15)]
+        times = [[i * 100 + float(np.random.rand()), f'trigger {i}'] for i in range(15)]
         event = EventEntry(id='triggers.csv', parent=u, separator=',', decimalSeparator='.')
-        event.set_attrib('contentClass','trigger')
+        event.set_attrib('contentClass', 'trigger')
         event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
         event.set_data(times, contentClass='triggers', unit='ms')
         u.save()
@@ -452,13 +441,12 @@ class Testing(unittest.TestCase):
         times2 = event2.get_data()
         self.assertSequenceEqual(times, times2)
 
-    
-        # now test with different separators   
+        # now test with different separators
         folder = os.path.join(self.tmpdir, 'data', 'record2')
         u = Unisens(folder, makenew=True)
-        times = [[i*100 + float(np.random.rand(1)), f'trigger {i}'] for i in range(15)]
+        times = [[i * 100 + float(np.random.rand()), f'trigger {i}'] for i in range(15)]
         event = EventEntry(id='triggers.csv', parent=u, separator=';', decimalSeparator=',')
-        event.set_attrib('contentClass','trigger')
+        event.set_attrib('contentClass', 'trigger')
         event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
         event.set_data(times, contentClass='triggers', unit='ms')
         u.save()
@@ -466,13 +454,13 @@ class Testing(unittest.TestCase):
         event2 = u2['triggers.csv']
         times2 = event2.get_data()
         self.assertSequenceEqual(times, times2)
-        
+
         # now test with np array
         folder = os.path.join(self.tmpdir, 'data', 'record3')
         u = Unisens(folder, makenew=True)
         times = np.random.rand(5, 15)
         event = EventEntry(id='triggers.csv', parent=u, separator=',', decimalSeparator='.')
-        event.set_attrib('contentClass','trigger')
+        event.set_attrib('contentClass', 'trigger')
         event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
         event.set_data(times, contentClass='triggers', unit='ms')
         u.save()
@@ -482,14 +470,12 @@ class Testing(unittest.TestCase):
         np.testing.assert_allclose(times, times2)
 
     def test_save_valuesentry(self):
-        self.tmpdir = tempfile.mkdtemp(prefix='unisens')
-
         folder = os.path.join(self.tmpdir, 'data', 'record1')
-        
+
         u = Unisens(folder, makenew=True)
-        times = [[i*100 + float(np.random.rand(1)), f'trigger {i}'] for i in range(15)]
+        times = [[i * 100 + float(np.random.rand()), f'trigger {i}'] for i in range(15)]
         event = ValuesEntry(id='triggers.csv', parent=u, separator=',', decimalSeparator='.')
-        event.set_attrib('contentClass','trigger')
+        event.set_attrib('contentClass', 'trigger')
         event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
         event.set_data(times, contentClass='triggers', unit='ms')
         u.save()
@@ -497,13 +483,13 @@ class Testing(unittest.TestCase):
         event2 = u2['triggers.csv']
         times2 = event2.get_data()
         self.assertSequenceEqual(times, times2)
-    
+
         # now test with different separators   
         folder = os.path.join(self.tmpdir, 'data', 'record2')
         u = Unisens(folder, makenew=True)
-        times = [[i*100 + float(np.random.rand(1)), f'trigger {i}'] for i in range(15)]
+        times = [[i * 100 + float(np.random.rand()), f'trigger {i}'] for i in range(15)]
         event = ValuesEntry(id='triggers.csv', parent=u, separator=';', decimalSeparator=',')
-        event.set_attrib('contentClass','trigger')
+        event.set_attrib('contentClass', 'trigger')
         event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
         event.set_data(times, contentClass='triggers', unit='ms')
         u.save()
@@ -511,13 +497,13 @@ class Testing(unittest.TestCase):
         event2 = u2['triggers.csv']
         times2 = event2.get_data()
         self.assertSequenceEqual(times, times2)
-        
+
         # now test with np array
         folder = os.path.join(self.tmpdir, 'data', 'record3')
         u = Unisens(folder, makenew=True)
         times = np.random.rand(5, 15)
         event = ValuesEntry(id='triggers.csv', parent=u, separator=',', decimalSeparator='.')
-        event.set_attrib('contentClass','trigger')
+        event.set_attrib('contentClass', 'trigger')
         event.set_attrib('comment', 'marks the trigger pointy thingy dingies')
         event.set_data(times, contentClass='triggers', unit='ms')
         u.save()
@@ -525,133 +511,132 @@ class Testing(unittest.TestCase):
         event2 = u2['triggers.csv']
         times2 = event2.get_data()
         np.testing.assert_allclose(times, times2)
-        
+
     def test_access_no_ext_item(self):
-        u = Unisens(tempfile.mkdtemp(prefix='unisens'))
+        u = Unisens(self.tmpdir, makenew=True)
         entry1 = SignalEntry('single.csv', parent=u)
         entry2 = SignalEntry('double.csv', parent=u)
         entry3 = SignalEntry('double.bin', parent=u)
-        
-        self.assertIs (u['single.csv'], entry1)
-        self.assertIs (u['single'], entry1)
-        self.assertIs (u['double.csv'], entry2)
-        self.assertIs (u['double.bin'], entry3)
+
+        self.assertIs(u['single.csv'], entry1)
+        self.assertIs(u['single'], entry1)
+        self.assertIs(u['double.csv'], entry2)
+        self.assertIs(u['double.bin'], entry3)
         with self.assertRaises(IndexError):
             u['double']
-            
+
         self.assertIn('single.csv', u)
         self.assertIn('single', u)
-        self.assertIn('double.csv', u)  
-        self.assertNotIn('double', u)  
-   
-    
+        self.assertIn('double.csv', u)
+        self.assertNotIn('double', u)
+
     def test_access_no_ext_attrib(self):
-        u = Unisens(tempfile.mkdtemp(prefix='unisens'))
+        u = Unisens(self.tmpdir, makenew=True)
         entry1 = SignalEntry('single.csv', parent=u)
         entry2 = SignalEntry('double.csv', parent=u)
         entry3 = SignalEntry('double.bin', parent=u)
-        
-        self.assertIs (u.single, entry1)
-        self.assertIs (u.single_csv, entry1)
-        self.assertIs (u.double_csv, entry2)
-        self.assertIs (u.double_bin, entry3)
+
+        self.assertIs(u.single, entry1)
+        self.assertIs(u.single_csv, entry1)
+        self.assertIs(u.double_csv, entry2)
+        self.assertIs(u.double_bin, entry3)
         with self.assertRaises(IndexError):
             u.double
-            
-    
-   
+
     def test_subentries(self):
         """this is not officially supported, but useful"""
-        folder = tempfile.mkdtemp(prefix='unisens_x')
+        folder = os.path.join(self.tmpdir, 'subentries')
         u = Unisens(folder, makenew=True, autosave=True)
         c = CustomEntry(id='test.bin', parent=u).set_data(b'123')
         CustomEntry('feat1.txt', parent=c).set_data('123')
         CustomEntry('feat2.txt', parent=c).set_data('456')
         self.assertEqual(u['test']['feat1'].get_data(), '123')
         self.assertEqual(u['test']['feat2'].get_data(), '456')
-        
+
         u = Unisens(folder)
         self.assertEqual(u['test']['feat1'].get_data(), '123')
         self.assertEqual(u['test']['feat2'].get_data(), '456')
-        
+
     def test_entries_with_subfolder(self):
         """this is not officially supported, but useful"""
-        folder = tempfile.mkdtemp(prefix='unisens_x')
+        folder = os.path.join(self.tmpdir, 'subfolder')
         u = Unisens(folder, makenew=True, autosave=True)
         c = CustomEntry(id='test.bin', parent=u)
-        c1=CustomEntry('sub/feat1.txt', parent=c).set_data('123')
-        c2=CustomEntry('sub\\feat2.txt', parent=c).set_data('456')
+        c1 = CustomEntry('sub1/feat1.txt', parent=c).set_data('123')
+        c2 = CustomEntry('sub2\\feat2.txt', parent=c).set_data('456')
         with self.assertRaises((ValueError, PermissionError, OSError)):
-            CustomEntry('\\sub\\feat3.txt', parent=c).set_data('789')
-            
+            CustomEntry('\\sub\\feat3.txt', parent=c)
+
         self.assertTrue(os.path.isfile(c1._filename), f'{c1._filename} not found')
         self.assertTrue(os.path.isfile(c2._filename), f'{c2._filename} not found')
-        with open(os.path.join(folder, 'test.bin'), 'w'):pass
+        with open(os.path.join(folder, 'test.bin'), 'w'): pass
         u = Unisens(folder)
         self.assertEqual(u['test']['feat1'].get_data(), '123')
-        self.assertEqual(u['test']['sub/feat2.txt'].get_data(), '456')
-        
-        
+        self.assertEqual(u['test']['sub2/feat2.txt'].get_data(), '456')
+
     def test_copy(self):
-        folder = tempfile.mkdtemp(prefix='unisens_copy')
+        folder = os.path.join(self.tmpdir, 'copy')
         u1 = Unisens(folder, makenew=True, autosave=True)
         CustomEntry('test1.txt', parent=u1).set_data('asd')
         u2 = u1.copy()
         CustomEntry('test2.txt', parent=u1).set_data('qwerty')
-        
+
         u1.asd = 2
         self.assertTrue(hasattr(u1, 'asd'))
         self.assertFalse(hasattr(u2, 'asd'))
-        
+
         self.assertEqual(u1['test1'].get_data(), 'asd')
         self.assertEqual(u2['test1'].get_data(), 'asd')
         self.assertEqual(u1['test2'].get_data(), 'qwerty')
-        
-        with self.assertRaises(KeyError):
+
+        with self.assertRaises(KeyError) as e:
             u2['test2']
-        
-        
+        assert 'test2' in str(e.exception)
+
     def test_nostacking(self):
         """this is not officially supported, but useful"""
-        folder = tempfile.mkdtemp(prefix='unisens_')
-        
+        folder = os.path.join(self.tmpdir, 'stack')
+
         c = CustomEntry(id='test.bin', parent=folder)
         f = FileEntry('feat1.txt', parent=folder)
-        c.add_entry(f.copy())
+        d = f.copy()
+        assert d._parent is None
+        c.add_entry(d)
+        assert d._parent == c
         c.add_entry(f.copy())
         self.assertEqual(len(c), 2)
-        
+
         c = CustomEntry(id='test.bin', parent=folder)
         f = FileEntry('feat1.txt', parent=folder)
         c.add_entry(f.copy(), stack=False)
         c.add_entry(f.copy(), stack=False)
         self.assertEqual(len(c), 1)
-        
+
         c = CustomEntry(id='test.bin', parent=folder)
         f = MiscEntry(name='Test', parent=folder)
-        c.add_entry(f.copy().set_attrib('test1','val1'))
-        c.add_entry(f.copy().set_attrib('test2','val2'))
+        c.add_entry(f.copy().set_attrib('test1', 'val1'))
+        c.add_entry(f.copy().set_attrib('test2', 'val2'))
         self.assertEqual(len(c), 2)
         self.assertEqual(c['test'][0].test1, 'val1')
         self.assertEqual(c['test'][1].test2, 'val2')
-        
+
         c = CustomEntry(id='test.bin', parent=folder)
         f = MiscEntry(name='Test', parent=folder)
-        c.add_entry(f.copy().set_attrib('test1','val1'), stack=False)
-        c.add_entry(f.copy().set_attrib('test2','val2'), stack=False)
+        c.add_entry(f.copy().set_attrib('test1', 'val1'), stack=False)
+        c.add_entry(f.copy().set_attrib('test2', 'val2'), stack=False)
         self.assertEqual(len(c), 1)
         self.assertEqual(c['test'].test2, 'val2')
-        
-        
+        assert not hasattr(c.test, 'test1')
+
     def test_indexfinding(self):
         """try whether the index finding method is working correctly"""
-        folder = tempfile.mkdtemp(prefix='unisens_')
-        
+        folder = os.path.join(self.tmpdir, 'index')
+
         c = CustomEntry(id='test.bin', parent=folder)
         FileEntry('feat1.txt', parent=c)
         FileEntry('FEAT1.bin', parent=c)
         FileEntry('feat2.txt', parent=c)
-        
+
         self.assertEqual(c._get_index('feat2'), (2, 'feat2_txt'))
         self.assertEqual(c._get_index('feat2.txt'), (2, 'feat2_txt'))
         self.assertEqual(c._get_index('feat2_txt'), (2, 'feat2_txt'))
@@ -659,8 +644,7 @@ class Testing(unittest.TestCase):
         self.assertEqual(c._get_index('feat1_txt'), (0, 'feat1_txt'))
         self.assertEqual(c._get_index('feat1.bin'), (1, 'FEAT1_bin'))
         self.assertEqual(c._get_index('feat1_bin'), (1, 'FEAT1_bin'))
-        
-        
+
         self.assertEqual(c._get_index('fEAT2'), (2, 'feat2_txt'))
         self.assertEqual(c._get_index('fEAT2.txt'), (2, 'feat2_txt'))
         self.assertEqual(c._get_index('fEAT2_txt'), (2, 'feat2_txt'))
@@ -668,52 +652,48 @@ class Testing(unittest.TestCase):
         self.assertEqual(c._get_index('fEAT1_txt'), (0, 'feat1_txt'))
         self.assertEqual(c._get_index('fEAT1.bin'), (1, 'FEAT1_bin'))
         self.assertEqual(c._get_index('fEAT1_bin'), (1, 'FEAT1_bin'))
-        
+
         with self.assertRaises(IndexError):
             c._get_index('feat1')
-          
+
         with self.assertRaises(IndexError):
-            c._get_index('FEAT1') 
-            
+            c._get_index('FEAT1')
+
         with self.assertRaises(KeyError):
             c._get_index('feat0')
 
-            
     def test_indexfinding_subfolders(self):
         """try whether the index finding method is working correctly"""
-        folder = tempfile.mkdtemp(prefix='unisens_')
-        
+        folder = os.path.join(self.tmpdir, 'index_subfolders')
+
         c = CustomEntry(id='test.bin', parent=folder)
         FileEntry('feat.txt', parent=c)
         FileEntry('feat/feat.txt', parent=c)
         FileEntry('feat/feat.bin', parent=c)
         FileEntry('feat/one.txt', parent=c)
         FileEntry('feat/one_two.txt', parent=c)
-        
+
         self.assertEqual(c._get_index('feat.txt'), (0, 'feat_txt'))
-        
+
         self.assertEqual(c._get_index('one'), (3, 'feat_one_txt'))
         self.assertEqual(c._get_index('one.txt'), (3, 'feat_one_txt'))
         self.assertEqual(c._get_index('one_two'), (4, 'feat_one_two_txt'))
         self.assertEqual(c._get_index('one_two.txt'), (4, 'feat_one_two_txt'))
-        
+
         with self.assertRaises(IndexError):
             self.assertEqual(c._get_index('feat'), (0, 'feat_txt'))
-        
 
-        
     def test_nooverwrite(self):
-        folder = tempfile.mkdtemp(prefix='unisens_copy')
+        folder = os.path.join(self.tmpdir, 'no_overwrite')
         u = Unisens(folder, makenew=True, autosave=True)
         c = CustomEntry('test.txt', parent=u).set_attrib('a1', 'b1')
         self.assertEqual(u.test.a1, 'b1')
         with self.assertRaises(KeyError):
             c = CustomEntry('test.txt', parent=u).set_attrib('a2', 'b2')
             CustomEntry('asd.bin', parent=c)
-      
-        
+
     def test_loaddifferentfile(self):
-        folder = tempfile.mkdtemp(prefix='unisens_newfile')
+        folder = os.path.join(self.tmpdir, 'newfile')
         u = Unisens(folder, makenew=True, autosave=False)
         c = CustomEntry('test.txt', parent=u).set_attrib('a1', 'b1').set_data('test')
         self.assertEqual(str(c), '<customEntry(test.txt)>')
@@ -722,53 +702,51 @@ class Testing(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(u._folder, 'test.xml')))
         u1 = Unisens(folder, autosave=False)
         u2 = Unisens(folder, filename='test.xml', autosave=False)
-        
+
         self.assertNotIn('test', u1)
         self.assertTrue(elements_equal(u.to_element(), u2.to_element()))
-        
+
     def test_loaddifferentfile2(self):
-        folder = tempfile.mkdtemp(prefix='unisens')
+        folder = os.path.join(self.tmpdir, 'diff_file')
         u = Unisens(folder, makenew=True, autosave=True)
         CustomEntry('test.bin', parent=u).set_data(b'test')
         u.remove_entry('test.bin')
-        
+
         CustomEntry('test.bin', parent=u).set_data(b'test')
         u.remove_entry('test')
-        
+
         CustomEntry('test.bin', parent=u).set_data(b'test')
-        u.remove_entry('test_bin') 
-        
+        u.remove_entry('test_bin')
+
     def test_repr_str(self):
-        folder = tempfile.mkdtemp(prefix='strrepr')
+        folder = os.path.join(self.tmpdir, 'strrepr')
         u = Unisens(folder, makenew=True, autosave=True)
         u.measurementId = 'thisid'
-        u.duration = 60*2 + 60*60*2 + 5
+        u.duration = 60 * 2 + 60 * 60 * 2 + 5
         a = str(u)
         b = repr(u)
-        self.assertEqual(a,'Unisens: thisid(2:02:05, 0 entries)')
-        self.assertEqual(b,f'Unisens(comment=, duration=2:02:05,  id=thisid,timestampStart={u.timestampStart})')
-        
-    def test_serialize(self)       :
-        folder = tempfile.mkdtemp(prefix='seria')
+        self.assertEqual(a, 'Unisens: thisid(2:02:05, 0 entries)')
+        self.assertEqual(b, f'Unisens(comment=, duration=2:02:05,  id=thisid,timestampStart={u.timestampStart})')
+
+    def test_serialize(self):
+        folder = os.path.join(self.tmpdir, 'seria')
         u = Unisens(folder, makenew=True, autosave=True)
         CustomEntry('test.bin', parent=u).set_data(b'test')
         CustomEntry('test2.bin', parent=u).set_data(b'test2')
         u.save()
-        u.asd='asdf'
-        
-        with open(folder + '/asd.pkl', 'wb') as f:   
+        u.asd = 'asdf'
+
+        with open(folder + '/asd.pkl', 'wb') as f:
             pickle.dump(u, f)
-            
-        with open(folder + '/asd.pkl', 'rb') as f:   
-            u1 = pickle.load(f)         
-            
+
+        with open(folder + '/asd.pkl', 'rb') as f:
+            u1 = pickle.load(f)
+
         elements_equal(u.to_element(), u1.to_element())
-        
-        
-        
+
     def test_convert_nums(self):
-        folder = tempfile.mkdtemp(prefix='convert_nums')
-        u = Unisens(folder, makenew=True, autosave=True) 
+        folder = os.path.join(self.tmpdir, 'convert_nums')
+        u = Unisens(folder, makenew=True, autosave=True)
         u.int = 1
         u.float = 1.5
         u.bool = True
@@ -776,25 +754,25 @@ class Testing(unittest.TestCase):
         u.entry.int = 1
         u.entry.float = 1.5
         u.entry.bool = True
-        
+
         self.assertEqual(u.int, 1)
         self.assertEqual(u.float, 1.5)
         self.assertEqual(u.bool, True)
         self.assertEqual(u.entry.int, 1)
         self.assertEqual(u.entry.float, 1.5)
         self.assertEqual(u.entry.bool, True)
-        
-        u1 =  Unisens(folder, readonly=True, convert_nums=False)  
-        
+
+        u1 = Unisens(folder, readonly=True, convert_nums=False)
+
         self.assertEqual(u1.int, '1')
         self.assertEqual(u1.float, '1.5')
         self.assertEqual(u1.bool, 'True')
         self.assertEqual(u1.entry.int, '1')
         self.assertEqual(u1.entry.float, '1.5')
-        self.assertEqual(u1.entry.bool,'True')
-        
-        u1 =  Unisens(folder, readonly=True, convert_nums=True)  
-        
+        self.assertEqual(u1.entry.bool, 'True')
+
+        u1 = Unisens(folder, readonly=True, convert_nums=True)
+
         self.assertEqual(u1.int, 1)
         self.assertEqual(u1.float, 1.5)
         self.assertEqual(u1.bool, True)
@@ -802,20 +780,168 @@ class Testing(unittest.TestCase):
         self.assertEqual(u1.entry.float, 1.5)
         self.assertEqual(u1.entry.bool, True)
 
+    def test_remove_entry(self):
+        u = Unisens(self.tmpdir, makenew=True)
+        CustomEntry(id='custom.txt', parent=u)
+        SignalEntry(id='signal.bin', parent=u)
+        ValuesEntry(id='values.csv', parent=u)
+        for entry_name in ['custom.txt', 'signal.bin', 'values.csv']:
+            #assert hasattr(u, entry_name)
+            assert make_key(entry_name) in u.__dict__
+            e = u.entries[entry_name]
+            assert e in u._entries
+        del entry_name, e
+        for entry_name in ['signal.bin', 'values.csv', 'custom.txt']:
+            e = u.entries[entry_name]
+            u.remove_entry(entry_name)
+            assert make_key(entry_name) not in u.__dict__
+            assert entry_name not in u.entries
+            assert e not in u._entries
+
+    def test_write_signal_entry(self):
+        unisens = Unisens(os.path.join(os.path.dirname(__file__), 'Example_003'))
+
+        signal = unisens.acc_textile_50_bin
+        original_data = signal.get_data(scaled=True)
+        data_scaled = original_data[:, :48]
+        data_unscaled = signal.get_data(scaled=False)[:, :48]
+        assert np.any(data_unscaled != data_scaled)
+
+        from copy import copy
+        kwargs: dict = copy(signal.attrib)
+        original_sample_rate = kwargs.pop('sampleRate', None)
+        kwargs['sampleRate'] = float(1 / 3600)
+        kwargs.pop('id', None)
+        ch_names = ['tick', 'trick', 'track']
+
+        for ending in ['.csv', '.bin']:
+            name = 'test_signal' + ending
+            for f in ['a_', 'b_', 'c_']:
+                file = f + name
+                if hasattr(unisens, file):
+                    unisens.remove_entry(file)
+
+            kwargs.update({'dataType': 'int16', 'lsbValue': '0.00294', 'baseline': '2048'})
+            s = SignalEntry(id='a_' + name, parent=unisens)
+            s.set_data(data_unscaled, ch_names=ch_names, **kwargs)
+            data_return = s.get_data(scaled=False)
+            assert np.all(data_unscaled == data_return)
+            data_return1 = s.get_data(scaled=True)
+            if ending == '.bin':
+                assert np.all(data_scaled == data_return1)
+                assert np.all(((data_unscaled - 2048) * 0.00294) == data_return1)
+            else:
+                assert np.all(data_return == data_return1)
+
+            kwargs.update({'dataType': 'float64', 'lsbValue': 1, 'baseline': '0'})
+            s2 = SignalEntry(id='b_' + name, parent=unisens, **kwargs)
+            s2.set_data(data_unscaled, ch_names=ch_names)
+            data_return2 = s2.get_data(scaled=False)
+            assert np.all(data_unscaled == data_return2)
+            data_return21 = s2.get_data(scaled=True)
+            assert np.all(data_unscaled == data_return21)
+
+            kwargs.update({'dataType': 'uint16', 'lsbValue': '0.00098', 'baseline': '6426'})
+            s3 = SignalEntry(id='c_' + name, parent=unisens, attrib=kwargs)
+            s3.set_data(abs(data_unscaled), ch_names=ch_names)
+            data_return3 = s3.get_data(scaled=False)
+            assert np.all(abs(data_unscaled) == data_return3)
+            data_return31 = s3.get_data(scaled=True)
+            if ending == '.bin':
+                assert np.any(data_scaled != data_return31)  # different scaling
+                assert np.all(((abs(data_unscaled) - 6426) * 0.00098) == data_return31)
+            else:
+                assert np.all(abs(data_unscaled) == data_return31)
+
+    def test_deprecation(self):
+        # CustomAttribute
+        from unisens import CustomAttribute
+        ca = CustomAttributes()
+        # expected usage
+        with pytest.warns(DeprecationWarning) as dep:
+            att = CustomAttribute(height2='2,05m')
+        assert att.height2 == '2,05m'
+        with pytest.raises(AttributeError):
+            ca.add_entry(att)
+        assert not hasattr(ca, 'height2')
+
+        with pytest.warns(DeprecationWarning) as dep:
+            att1 = CustomAttribute()
+        att1.set_attrib('key', 'height2')
+        att1.set_attrib('value', '2,05m')
+        ca.add_entry(att1)
+        assert ca.height2 == '2,05m'
+        # desired usage
+        ca.set_attrib(name='height1', value='1,73m')
+        assert ca.height1 == '1,73m'
+
+        # return_type
+        u = Unisens(os.path.join(os.path.dirname(__file__), 'Example_001'))
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            signal1 = u.ecg200_bin.get_data(scaled=True)
+            #with pytest.warns(DeprecationWarning) as dep:
+            with pytest.raises(DeprecationWarning) as d:
+                u.ecg200_bin.get_data(scaled=True, return_type='numpy')
+            assert str(d.value) == 'The argument `return_type` has no effect and will be removed with the next release.'
+        signal2 = u.ecg200_bin.get_data(scaled=True, return_type='numpy')
+        assert np.all(signal1 == signal2)
+
+        # removing default channel naming for aligning data orientation verified by channels
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            se1 = SignalEntry('test_signal.bin')
+            #ve1 = ValuesEntry()
+            with pytest.raises(DeprecationWarning) as d:
+                se1.set_data(data=signal2[:20], sampleRate=float(u.ecg200_bin.sampleRate))
+            assert str(d.value) == 'Channel naming will be mandatory with the next release. ' \
+                                   'Please provide a list of channel names with set_data().'
+            se2 = SignalEntry('test_signal.bin', channel=u.ecg200_bin.channel)
+            se2.set_data(data=signal2[:20], sampleRate=float(u.ecg200_bin.sampleRate))
+            ve1 = ValuesEntry('test_signal.csv')
+            with pytest.raises(DeprecationWarning) as d:
+                ve1.set_data(data=signal2[:20], sampleRate=float(u.ecg200_bin.sampleRate))
+            assert str(d.value) == 'Channel naming will be mandatory with the next release. ' \
+                                   'Please provide a list of channel names with set_data().'
+            os.remove('test_signal.bin')
+            os.remove('test_signal.csv')
+
+    def test_read_unisens_deprecation(self):
+        u_folder = os.path.join(os.path.dirname(__file__), 'Example_001')
+
+        # unisens cannot be read twice -> use makenew or a different filepath
+
+        # behaviour to remove
+        u0 = Unisens(os.path.join(os.path.dirname(__file__), 'Example_002'))  # read first file here
+        assert not hasattr(u0, 'customAttributes')  # data from first file
+        assert u0.timestampStart == '2008-07-04T13:27:57'
+        with pytest.deprecated_call() as dep:
+            u0.read_unisens(folder=u_folder)  # read second file
+        assert str(dep.list[-1].message) == '`read_unisens` is deprecated and will be removed with the next release. Please read your unisens file by calling Unisens(folder=folder, filename=filename).'
+        assert u0.customAttributes.height == '1.74m'  # data from second file
+        assert u0.timestampStart == '2008-07-08T13:32:51'
+        assert os.path.basename(u0._folder) == 'Example_002'  # path from first file!
+
+        u1 = Unisens(u_folder, filename='new_unisens.xml')  # a new file here
+        with pytest.deprecated_call() as dep:
+            u1.read_unisens(folder=u_folder)  # read different old file
+        assert str(dep.list[-1].message) == '`read_unisens` is deprecated and will be removed with the next release. Please read your unisens file by calling Unisens(folder=folder, filename=filename).'
+        assert os.path.basename(u1._file) == 'new_unisens.xml'
+        assert u1.customAttributes.height == '1.74m'  # data from old file
+
+        u2 = Unisens(u_folder, makenew=True)  # set makenew
+        with pytest.warns(DeprecationWarning) as dep:
+            u2.read_unisens(folder=u_folder)  # read actually existing file
+        assert str(dep.list[-1].message) == '`read_unisens` is deprecated and will be removed with the next release. Please read your unisens file by calling Unisens(folder=folder, filename=filename).'
+        assert u2._file == os.path.join(u_folder, 'unisens.xml')
+        assert u2.customAttributes.height == '1.74m'  # data from existing file
+
+        # no deprecation at initialization
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            u3 = Unisens(u_folder, makenew=False)
+        assert u3.customAttributes.height == '1.74m'
+
 
 if __name__ == '__main__':
     unittest.main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-

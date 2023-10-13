@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setup(name='pyunisens',
       python_requires='>=3.6',
-      version='1.03',
+      version='1.5.0',
       description='A python implementation of the Unisens standard',
       url='http://github.com/Unisens/pyUnisens',
       author='skjerns',
