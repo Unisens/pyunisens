@@ -222,6 +222,9 @@ class Entry(ABC):
                 self.add_entry(channel)
         elif not hasattr(self, 'channel'):
             # this means no channel names are indicated and none exist
+            warnings.warn('Channel naming will be mandatory with the next release. '
+                          'Please provide a list of channel names with set_data().',
+                          category=DeprecationWarning, stacklevel=2)
             # we create new generic names for the channels
             logging.info('No channel names indicated, will use generic names')
             for i in range(n_data):

@@ -887,6 +887,22 @@ class Testing(unittest.TestCase):
         signal2 = u.ecg200_bin.get_data(scaled=True, return_type='numpy')
         assert np.all(signal1 == signal2)
 
+        # removing default channel naming for aligning data orientation verified by channels
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            se1 = SignalEntry('test_signal.bin')
+            #ve1 = ValuesEntry()
+            with pytest.raises(DeprecationWarning) as d:
+                se1.set_data(data=signal2[:20], sampleRate=float(u.ecg200_bin.sampleRate))
+            assert str(d.value) == 'Channel naming will be mandatory with the next release. ' \
+                                   'Please provide a list of channel names with set_data().'
+            se2 = SignalEntry('test_signal.bin', channel=u.ecg200_bin.channel)
+            se2.set_data(data=signal2[:20], sampleRate=float(u.ecg200_bin.sampleRate))
+            ve1 = ValuesEntry('test_signal.csv')
+            with pytest.raises(DeprecationWarning) as d:
+                ve1.set_data(data=signal2[:20], sampleRate=float(u.ecg200_bin.sampleRate))
+            assert str(d.value) == 'Channel naming will be mandatory with the next release. ' \
+                                   'Please provide a list of channel names with set_data().'
 
     def test_read_unisens_deprecation(self):
         u_folder = os.path.join(os.path.dirname(__file__), 'Example_001')
