@@ -17,7 +17,6 @@ todo: example file
 todo: add group
 todo: channel to valuesentry
 todo: parent in folder/parent
-todo: coherent attribute setting in __init__ and set_data()
 @author: skjerns
 """
 import os
@@ -65,7 +64,7 @@ class Unisens(Entry):
         :param attrib: The attribute 
         :param convert_nums: try to convert numbers from attribs automatically
         """
-        assert autosave != readonly or not autosave and not readonly, \
+        assert not (autosave and readonly), \
             'either read-only or autosave can be enabled'
         assert isinstance(folder, str), f'folder must be string, is {folder}'
         self._folder = os.path.normpath(folder)
