@@ -887,15 +887,6 @@ class Testing(unittest.TestCase):
         signal2 = u.ecg200_bin.get_data(scaled=True, return_type='numpy')
         assert np.all(signal1 == signal2)
 
-        # scaled
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            with pytest.raises(DeprecationWarning) as d:
-                u.ecg200_bin.get_data()
-            assert str(d.value) == 'The argument `scaled` will switch its default to False with the next release. ' \
-                                   'Please specify `scaled=True` to preserve your results.'
-            signal3 = u.ecg200_bin.get_data(scaled=False)
-            assert np.all(signal3[:, :5] * float(u.ecg200_bin.lsbValue) == signal1[:, :5])
 
     def test_read_unisens_deprecation(self):
         u_folder = os.path.join(os.path.dirname(__file__), 'Example_001')

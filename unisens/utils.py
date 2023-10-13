@@ -300,21 +300,3 @@ def infer_dtype(dataType: str) -> str:
     return dataType
 
 
-def default_value_deprecator(arg_name: str, pos: int, msg: str):
-    """
-    This decorator deprecates the default value of an argument
-    (not the functionality of the argument).
-    It warns if the argument is not specified with the function / method call.
-
-    :param arg_name: name of the argument
-    :param pos: position of the argument in args
-    :param msg: deliver information about the change, the timing and what to do about it.
-    :return:
-    """
-    def outer(func):
-        def inner(*args, **kwargs):
-            if (len(args) < pos + 1) and (arg_name not in kwargs):
-                warnings.warn(msg, category=DeprecationWarning, stacklevel=2)
-            return func(*args, **kwargs)
-        return inner
-    return outer
