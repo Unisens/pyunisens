@@ -30,6 +30,8 @@ from .entry import EventEntry, CustomEntry, CustomAttributes
 from .utils import AttrDict, strip, validkey, lowercase, make_key, indent
 from .utils import str2num
 
+logger = logging.getLogger("unisens")
+
 
 class Unisens(Entry):
     """
@@ -78,12 +80,12 @@ class Unisens(Entry):
         self._convert_nums = convert_nums
 
         if os.path.isfile(self._file) and not makenew:
-            logging.debug('loading unisens.xml from {}'.format(self._file))
+            logger.debug('loading unisens.xml from {}'.format(self._file))
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 self.read_unisens()
         else:
-            logging.debug('New unisens.xml will be created at {}'.format(self._file))
+            logger.debug('New unisens.xml will be created at {}'.format(self._file))
             if not timestampStart:
                 now = datetime.datetime.now()
                 timestampStart = now.strftime('%Y-%m-%dT%H:%M:%S')
@@ -188,7 +190,7 @@ class Unisens(Entry):
             entry = MiscEntry(name=name, attrib=attrib, parent=self._folder)
         else:
             if not 'Entry' in element.tag:
-                logging.warning('Unknown entry type: {}'.format(entryType))
+                logger.warning('Unknown entry type: {}'.format(entryType))
             name = element.tag
             entry = MiscEntry(name=name, attrib=attrib, parent=self._folder)
 

@@ -20,6 +20,8 @@ from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
 from copy import deepcopy
 
+logger = logging.getLogger("unisens")
+
 
 def get_module(name):
     try:
@@ -215,7 +217,7 @@ class Entry(ABC):
             # this means new channel names are indicated and will overwrite.
             assert len(ch_names) == n_data, f'len {ch_names}!={n_data}'
             if hasattr(self, 'channel'):
-                logging.warning('Channels present will be overwritten')
+                logger.warning('Channels present will be overwritten')
                 self.remove_entry('channel')
             for name in ch_names:
                 channel = MiscEntry('channel', key='name', value=name)
@@ -226,7 +228,7 @@ class Entry(ABC):
                           'Please provide a list of channel names with set_data().',
                           category=DeprecationWarning, stacklevel=2)
             # we create new generic names for the channels
-            logging.info('No channel names indicated, will use generic names')
+            logger.info('No channel names indicated, will use generic names')
             for i in range(n_data):
                 channel = MiscEntry('channel', key='name', value=f'ch_{i}')
                 self.add_entry(channel)
@@ -373,7 +375,7 @@ class Entry(ABC):
             del self.attrib[name]
             del self.__dict__[name]
         else:
-            logging.error('{} not in attrib'.format(name))
+            logger.error('{} not in attrib'.format(name))
         self._autosave()
         return self
 
@@ -438,12 +440,12 @@ class FileEntry(Entry):
             valid_filename(self.id)
             self._filename = os.path.join(self._folder, self.id)
             if not os.access(self._filename, os.F_OK):
-                logging.error('File {} does not exist'.format(self.id))
+                logger.error('File {} does not exist'.format(self.id))
         elif id:
             # writing entry
             valid_filename(id)
             if os.path.splitext(str(id))[-1] == '':
-                logging.warning('id should be a filename with extension ie. .bin')
+                logger.warning('id should be a filename with extension ie. .bin')
             self._filename = os.path.join(self._folder, id)
             self.set_attrib('id', id)
             # ensure subdirectories exist to write data
@@ -623,7 +625,7 @@ class CsvFileEntry(FileEntry):
         assert decimalSeparator and separator, 'Must supply separators'
 
         if not self.id.endswith('csv'):
-            logging.warning(f'id "{id}" does not end in .csv')
+            logger.warning(f'id "{id}" does not end in .csv')
 
         csvFileFormat = MiscEntry('csvFileFormat', parent=self)
         csvFileFormat.set_attrib('decimalSeparator', decimalSeparator)
@@ -652,8 +654,8 @@ class CsvFileEntry(FileEntry):
         sep = self.csvFileFormat.separator
         dec = self.csvFileFormat.decimalSeparator
 
-        if len(data) == 0 or len(data[0]) < 2: logging.warning('Should supply at least two columns: ' \
-                                                               'time and data')
+        if len(data) == 0 or len(data[0]) < 2:
+            logger.warning('Should supply at least two columns: time and data')
 
         write_csv(self._filename, data, sep=sep, decimal_sep=dec)
 
