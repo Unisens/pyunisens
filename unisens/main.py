@@ -189,7 +189,7 @@ class Unisens(Entry):
             name = element.tag
             entry = MiscEntry(name=name, attrib=attrib, parent=self._folder)
         else:
-            if not 'Entry' in element.tag:
+            if 'Entry' not in element.tag:
                 logger.warning('Unknown entry type: {}'.format(entryType))
             name = element.tag
             entry = MiscEntry(name=name, attrib=attrib, parent=self._folder)
