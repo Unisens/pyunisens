@@ -7,18 +7,30 @@ Created on Mon Jan 6 21:16:58 2020
 from __future__ import annotations
 
 import importlib
-import os, sys
+import logging
+import os
+import sys
 import warnings
 from abc import ABC
+from copy import deepcopy
 from typing import List, Tuple
-
-import numpy as np
-import logging
-from .utils import validkey, strip, lowercase, make_key, valid_filename, infer_dtype
-from .utils import read_csv, write_csv
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
-from copy import deepcopy
+
+import numpy as np
+
+from .utils import (
+    infer_dtype,
+    lowercase,
+    make_key,
+    read_csv,
+    strip,
+    valid_filename,
+    validkey,
+    write_csv,
+)
+
+logger = logging.getLogger("unisens")
 
 
 def get_module(name):
@@ -74,8 +86,10 @@ class Entry(ABC):
         self._autosave()
 
     def __contains__(self, item):
-        if item in self.__dict__: return True
-        if make_key(item) in self.__dict__: return True
+        if item in self.__dict__:
+            return True
+        if make_key(item) in self.__dict__:
+            return True
         try:
             self.__getitem__(item)
             return True
@@ -87,7 +101,8 @@ class Entry(ABC):
         Allows settings of attributes via .name = value.
         """
         super.__setattr__(self, name, value)
-        if name.startswith('_'): return
+        if name.startswith('_'):
+            return
         methods = dir(type(self))
         # do not overwrite if it's a builtin method
         if name not in methods and \
@@ -194,8 +209,10 @@ class Entry(ABC):
                     elif os.path.basename(id_upper) == id_or_name_upper:
                         found += [(i, make_key(entry.id))]
 
-        if len(found) == 1: return found[0]
-        if len(found) > 1: raise IndexError(f'More than one match for {id_or_name}: {found}')
+        if len(found) == 1:
+            return found[0]
+        if len(found) > 1:
+            raise IndexError(f'More than one match for {id_or_name}: {found}')
         raise KeyError(f'{id_or_name} not found')
 
     def _set_channels(self, ch_names: List[str], n_data: int):
@@ -211,11 +228,12 @@ class Entry(ABC):
             one less if an index is expected.
         """
         if ch_names is not None:
-            if isinstance(ch_names, str): ch_names = [ch_names]
+            if isinstance(ch_names, str):
+                ch_names = [ch_names]
             # this means new channel names are indicated and will overwrite.
             assert len(ch_names) == n_data, f'len {ch_names}!={n_data}'
             if hasattr(self, 'channel'):
-                logging.warning('Channels present will be overwritten')
+                logger.warning('Channels present will be overwritten')
                 self.remove_entry('channel')
             for name in ch_names:
                 channel = MiscEntry('channel', key='name', value=name)
@@ -226,7 +244,7 @@ class Entry(ABC):
                           'Please provide a list of channel names with set_data().',
                           category=DeprecationWarning, stacklevel=2)
             # we create new generic names for the channels
-            logging.info('No channel names indicated, will use generic names')
+            logger.info('No channel names indicated, will use generic names')
             for i in range(n_data):
                 channel = MiscEntry('channel', key='name', value=f'ch_{i}')
                 self.add_entry(channel)
@@ -373,7 +391,7 @@ class Entry(ABC):
             del self.attrib[name]
             del self.__dict__[name]
         else:
-            logging.error('{} not in attrib'.format(name))
+            logger.error('{} not in attrib'.format(name))
         self._autosave()
         return self
 
@@ -438,12 +456,12 @@ class FileEntry(Entry):
             valid_filename(self.id)
             self._filename = os.path.join(self._folder, self.id)
             if not os.access(self._filename, os.F_OK):
-                logging.error('File {} does not exist'.format(self.id))
+                logger.error('File {} does not exist'.format(self.id))
         elif id:
             # writing entry
             valid_filename(id)
             if os.path.splitext(str(id))[-1] == '':
-                logging.warning('id should be a filename with extension ie. .bin')
+                logger.warning('id should be a filename with extension ie. .bin')
             self._filename = os.path.join(self._folder, id)
             self.set_attrib('id', id)
             # ensure subdirectories exist to write data
@@ -452,7 +470,8 @@ class FileEntry(Entry):
                 os.makedirs(sub_folder, exist_ok=True)
         else:
             raise ValueError('The id must be supplied if it is not yet set.')
-        if isinstance(parent, Entry): parent.add_entry(self)
+        if isinstance(parent, Entry):
+            parent.add_entry(self)
 
 
 class SignalEntry(FileEntry):
@@ -480,7 +499,7 @@ class SignalEntry(FileEntry):
         """
 
         if return_type is not None:
-            warnings.warn(f'The argument `return_type` has no effect and will be removed with the next release.',
+            warnings.warn('The argument `return_type` has no effect and will be removed with the next release.',
                           category=DeprecationWarning, stacklevel=2)
 
         if self.id.endswith('csv'):
@@ -594,15 +613,23 @@ class SignalEntry(FileEntry):
 
         self._set_channels(ch_names, n_data=len(data))
 
-        if sampleRate is not None: self.set_attrib('sampleRate', sampleRate)
+        if sampleRate is not None:
+            self.set_attrib('sampleRate', sampleRate)
         assert 'sampleRate' in self.attrib, "Please specify sampleRate for correct visualization."
-        if unit is not None: self.set_attrib('unit', unit)
-        if comment is not None: self.set_attrib('comment', comment)
-        if contentClass is not None: self.set_attrib('contentClass', contentClass)
-        if adcZero is not None: self.set_attrib('adcZero', adcZero)
-        if adcResolution is not None: self.set_attrib('adcResolution', adcResolution)
-        if source is not None: self.set_attrib('source', source)
-        if sourceId is not None: self.set_attrib('sourceId', sourceId)
+        if unit is not None:
+            self.set_attrib('unit', unit)
+        if comment is not None:
+            self.set_attrib('comment', comment)
+        if contentClass is not None:
+            self.set_attrib('contentClass', contentClass)
+        if adcZero is not None:
+            self.set_attrib('adcZero', adcZero)
+        if adcResolution is not None:
+            self.set_attrib('adcResolution', adcResolution)
+        if source is not None:
+            self.set_attrib('source', source)
+        if sourceId is not None:
+            self.set_attrib('sourceId', sourceId)
 
         # set all other keyword arguments/comments as well.
         for key in kwargs:
@@ -623,7 +650,7 @@ class CsvFileEntry(FileEntry):
         assert decimalSeparator and separator, 'Must supply separators'
 
         if not self.id.endswith('csv'):
-            logging.warning(f'id "{id}" does not end in .csv')
+            logger.warning(f'id "{id}" does not end in .csv')
 
         csvFileFormat = MiscEntry('csvFileFormat', parent=self)
         csvFileFormat.set_attrib('decimalSeparator', decimalSeparator)
@@ -652,8 +679,8 @@ class CsvFileEntry(FileEntry):
         sep = self.csvFileFormat.separator
         dec = self.csvFileFormat.decimalSeparator
 
-        if len(data) == 0 or len(data[0]) < 2: logging.warning('Should supply at least two columns: ' \
-                                                               'time and data')
+        if len(data) == 0 or len(data[0]) < 2:
+            logger.warning('Should supply at least two columns: time and data')
 
         write_csv(self._filename, data, sep=sep, decimal_sep=dec)
 
@@ -802,7 +829,7 @@ class CustomEntry(FileEntry):
         elif dtype == 'json':
             try:
                 import json_tricks as json
-            except:
+            except ImportError:
                 json = get_module('json')
             with open(self._filename, 'r') as f:
                 data = json.load(f)
@@ -861,7 +888,7 @@ class CustomEntry(FileEntry):
             try:
                 import json_tricks as json
                 tricks_installed = True
-            except:
+            except ImportError:
                 json = get_module('json')
                 tricks_installed = False
             with open(self._filename, 'w') as f:
