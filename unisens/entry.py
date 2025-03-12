@@ -7,18 +7,28 @@ Created on Mon Jan 6 21:16:58 2020
 from __future__ import annotations
 
 import importlib
-import os, sys
+import logging
+import os
+import sys
 import warnings
 from abc import ABC
+from copy import deepcopy
 from typing import List, Tuple
-
-import numpy as np
-import logging
-from .utils import validkey, strip, lowercase, make_key, valid_filename, infer_dtype
-from .utils import read_csv, write_csv
 from xml.etree import ElementTree as ET
 from xml.etree.ElementTree import Element
-from copy import deepcopy
+
+import numpy as np
+
+from .utils import (
+    infer_dtype,
+    lowercase,
+    make_key,
+    read_csv,
+    strip,
+    valid_filename,
+    validkey,
+    write_csv,
+)
 
 logger = logging.getLogger("unisens")
 
@@ -196,8 +206,10 @@ class Entry(ABC):
                     elif os.path.basename(id_upper) == id_or_name_upper:
                         found += [(i, make_key(entry.id))]
 
-        if len(found) == 1: return found[0]
-        if len(found) > 1: raise IndexError(f'More than one match for {id_or_name}: {found}')
+        if len(found) == 1:
+            return found[0]
+        if len(found) > 1:
+            raise IndexError(f'More than one match for {id_or_name}: {found}')
         raise KeyError(f'{id_or_name} not found')
 
     def _set_channels(self, ch_names: List[str], n_data: int):
@@ -213,7 +225,8 @@ class Entry(ABC):
             one less if an index is expected.
         """
         if ch_names is not None:
-            if isinstance(ch_names, str): ch_names = [ch_names]
+            if isinstance(ch_names, str):
+                ch_names = [ch_names]
             # this means new channel names are indicated and will overwrite.
             assert len(ch_names) == n_data, f'len {ch_names}!={n_data}'
             if hasattr(self, 'channel'):
@@ -482,7 +495,7 @@ class SignalEntry(FileEntry):
         """
 
         if return_type is not None:
-            warnings.warn(f'The argument `return_type` has no effect and will be removed with the next release.',
+            warnings.warn('The argument `return_type` has no effect and will be removed with the next release.',
                           category=DeprecationWarning, stacklevel=2)
 
         if self.id.endswith('csv'):
@@ -596,15 +609,23 @@ class SignalEntry(FileEntry):
 
         self._set_channels(ch_names, n_data=len(data))
 
-        if sampleRate is not None: self.set_attrib('sampleRate', sampleRate)
+        if sampleRate is not None:
+            self.set_attrib('sampleRate', sampleRate)
         assert 'sampleRate' in self.attrib, "Please specify sampleRate for correct visualization."
-        if unit is not None: self.set_attrib('unit', unit)
-        if comment is not None: self.set_attrib('comment', comment)
-        if contentClass is not None: self.set_attrib('contentClass', contentClass)
-        if adcZero is not None: self.set_attrib('adcZero', adcZero)
-        if adcResolution is not None: self.set_attrib('adcResolution', adcResolution)
-        if source is not None: self.set_attrib('source', source)
-        if sourceId is not None: self.set_attrib('sourceId', sourceId)
+        if unit is not None:
+            self.set_attrib('unit', unit)
+        if comment is not None:
+            self.set_attrib('comment', comment)
+        if contentClass is not None:
+            self.set_attrib('contentClass', contentClass)
+        if adcZero is not None:
+            self.set_attrib('adcZero', adcZero)
+        if adcResolution is not None:
+            self.set_attrib('adcResolution', adcResolution)
+        if source is not None:
+            self.set_attrib('source', source)
+        if sourceId is not None:
+            self.set_attrib('sourceId', sourceId)
 
         # set all other keyword arguments/comments as well.
         for key in kwargs:
