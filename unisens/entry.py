@@ -86,8 +86,10 @@ class Entry(ABC):
         self._autosave()
 
     def __contains__(self, item):
-        if item in self.__dict__: return True
-        if make_key(item) in self.__dict__: return True
+        if item in self.__dict__:
+            return True
+        if make_key(item) in self.__dict__:
+            return True
         try:
             self.__getitem__(item)
             return True
@@ -99,7 +101,8 @@ class Entry(ABC):
         Allows settings of attributes via .name = value.
         """
         super.__setattr__(self, name, value)
-        if name.startswith('_'): return
+        if name.startswith('_'):
+            return
         methods = dir(type(self))
         # do not overwrite if it's a builtin method
         if name not in methods and \
@@ -467,7 +470,8 @@ class FileEntry(Entry):
                 os.makedirs(sub_folder, exist_ok=True)
         else:
             raise ValueError('The id must be supplied if it is not yet set.')
-        if isinstance(parent, Entry): parent.add_entry(self)
+        if isinstance(parent, Entry):
+            parent.add_entry(self)
 
 
 class SignalEntry(FileEntry):
@@ -825,7 +829,7 @@ class CustomEntry(FileEntry):
         elif dtype == 'json':
             try:
                 import json_tricks as json
-            except:
+            except ImportError:
                 json = get_module('json')
             with open(self._filename, 'r') as f:
                 data = json.load(f)
@@ -884,7 +888,7 @@ class CustomEntry(FileEntry):
             try:
                 import json_tricks as json
                 tricks_installed = True
-            except:
+            except ImportError:
                 json = get_module('json')
                 tricks_installed = False
             with open(self._filename, 'w') as f:
