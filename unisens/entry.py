@@ -503,7 +503,12 @@ class SignalEntry(FileEntry):
                           category=DeprecationWarning, stacklevel=2)
 
         if self.id.endswith('csv'):
-            data = np.genfromtxt(self._filename, dtype=str, delimiter=self.csvFileFormat.separator)
+            sep = getattr(self.csvFileFormat, 'separator', ';')
+            dec = getattr(self.csvFileFormat, 'decimalSeparator', '.')
+            data = np.genfromtxt(self._filename, dtype=str, delimiter=sep)
+            if dec != '.':
+                assert dec != sep, 'Error, separator cannot be same as decimalSeparator'
+                data = np.char.replace(data, dec, '.')
             data = data.astype(float)
             return data.T
 
