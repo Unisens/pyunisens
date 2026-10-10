@@ -292,11 +292,10 @@ def infer_dtype(dataType: str) -> str:
     dtype_mapping = {'FLOAT16': 'FLOAT',
                      'FLOAT32': 'FLOAT',
                      'FLOAT64': 'DOUBLE',
-                     'INT64': 'INT32',
                      'INT': 'INT32'}
     dataType = dtype_mapping.get(dataType, dataType)
-    allowed_dtypes = ['DOUBLE', 'FLOAT', 'INT16', 'INT32',
-                      'INT8', 'UINT16', 'UINT32', 'UINT8']
+    allowed_dtypes = ['DOUBLE', 'FLOAT', 'INT16', 'INT32', 'INT64',
+                      'INT8', 'UINT16', 'UINT32', 'UINT64', 'UINT8']
     assert dataType in allowed_dtypes, f'{dataType} is not in {allowed_dtypes}'
     return dataType
 
