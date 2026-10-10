@@ -58,7 +58,8 @@ def num2str(element, decimal_sep='.'):
     A helper function that converts strings to numbers if possible
     and replaces the float decimal separator with the given value
     """
-    if isinstance(element, float):
+    # np.float64 subclasses float, but np.float32/np.float16 do not
+    if isinstance(element, (float, np.floating)):
         return str(element).replace('.', decimal_sep)
     return str(element)
 
