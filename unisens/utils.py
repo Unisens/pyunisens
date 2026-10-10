@@ -166,7 +166,7 @@ def read_csv(csv_file, comment='#', sep=';', decimal_sep='.',
     :param comment: lines starting with this sign will be ignored
     :param convert_nums: convert numbers to int and float automatically
     """
-    with open(csv_file, 'r', newline='') as f:
+    with open(csv_file, 'r') as f:
         content = f.read()
 
     # split in lines, ignore comments
