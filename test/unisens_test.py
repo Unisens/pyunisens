@@ -396,6 +396,52 @@ class Testing(unittest.TestCase):
         folder = os.path.join(self.tmpdir, 'data', 'record')
         u = Unisens(folder, makenew=True)
 
+    def test_csv_signalentry_decimal_separator(self):
+        # round trip: single and multi channel, different separator combinations
+        for i, (dec, sep) in enumerate([(',', ';'), ('.', ';'), ('.', ','), (',', '\t')]):
+            for shape in [(1, 4), (3, 4)]:
+                folder = os.path.join(self.tmpdir, 'data', f'csv_dec_{i}_{shape[0]}')
+                data1 = np.arange(np.prod(shape), dtype=float).reshape(shape) * 1.25 - 3.5
+                u = Unisens(folder, makenew=True)
+                s = SignalEntry('x.csv', parent=u)
+                s.set_data(data1, sampleRate=1, lsbValue=1, unit='',
+                           decimalSeparator=dec, separator=sep)
+                u.save()
+                data2 = Unisens(folder)['x.csv'].get_data()
+                np.testing.assert_almost_equal(np.squeeze(data1), data2)
+
+    def test_csv_signalentry_handwritten_comma_decimal(self):
+        folder = os.path.join(self.tmpdir, 'data', 'csv_handwritten')
+        os.makedirs(folder)
+        with open(os.path.join(folder, 'unisens.xml'), 'w') as f:
+            f.write('<?xml version="1.0" encoding="utf-8"?>\n'
+                    '<unisens version="2.0" timestampStart="2020-01-01T00:00:00">\n'
+                    '  <signalEntry id="s.csv" dataType="double" lsbValue="1" sampleRate="1">\n'
+                    '    <csvFileFormat decimalSeparator="," separator=";" />\n'
+                    '    <channel name="a" /><channel name="b" />\n'
+                    '  </signalEntry>\n'
+                    '</unisens>\n')
+        with open(os.path.join(folder, 's.csv'), 'w') as f:
+            f.write('0,0;1,5\n2,25;-3,125\n')
+        data = Unisens(folder)['s.csv'].get_data()
+        np.testing.assert_almost_equal(data, [[0.0, 2.25], [1.5, -3.125]])
+
+    def test_csv_signalentry_missing_decimal_separator_defaults_to_dot(self):
+        folder = os.path.join(self.tmpdir, 'data', 'csv_nodec')
+        os.makedirs(folder)
+        with open(os.path.join(folder, 'unisens.xml'), 'w') as f:
+            f.write('<?xml version="1.0" encoding="utf-8"?>\n'
+                    '<unisens version="2.0" timestampStart="2020-01-01T00:00:00">\n'
+                    '  <signalEntry id="s.csv" dataType="double" lsbValue="1" sampleRate="1">\n'
+                    '    <csvFileFormat separator=";" />\n'
+                    '    <channel name="a" /><channel name="b" />\n'
+                    '  </signalEntry>\n'
+                    '</unisens>\n')
+        with open(os.path.join(folder, 's.csv'), 'w') as f:
+            f.write('0.5;1.5\n2.25;3\n')
+        data = Unisens(folder)['s.csv'].get_data()
+        np.testing.assert_almost_equal(data, [[0.5, 2.25], [1.5, 3.0]])
+
     def test_save_customtypes(self):
         folder = os.path.join(self.tmpdir, 'data', 'customtypes')
         from collections import OrderedDict
