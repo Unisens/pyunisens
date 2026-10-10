@@ -604,11 +604,14 @@ class SignalEntry(FileEntry):
             fileFormat = MiscEntry('binFileFormat', key='endianess', value=order)
             self.add_entry(fileFormat)
 
-            if 'int' in dataType:
+            # cast to the dtype written to the XML, which can differ from
+            # dataType, e.g. int64 is stored as int32
+            dtype = numpy_dtype(self.dataType)
+            if dtype.kind in 'iu':
                 data = np.round(data, 10)
-            data_formatted = data.astype(dataType)
+            data_formatted = data.astype(dtype)
             assert abs(np.sum(data - data_formatted)) < 1e-10, \
-                f"Can't format to dataType {dataType} without loss."
+                f"Can't format to dataType {self.dataType} without loss."
 
             # save data transposed because unisens reads rows*columns not columns*rows like numpy
             data_formatted.T.tofile(self._filename)

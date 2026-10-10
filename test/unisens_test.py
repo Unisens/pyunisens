@@ -12,6 +12,7 @@ import pytest
 from unisens import CustomEntry, ValuesEntry, EventEntry, SignalEntry
 from unisens import MiscEntry, CustomAttributes, Unisens, FileEntry
 from unisens import make_key
+from unisens.utils import numpy_dtype
 
 import unittest
 import shutil
@@ -409,6 +410,23 @@ class Testing(unittest.TestCase):
             data2 = signal.get_data()
             self.assertEqual(data2.dtype, np.dtype(dtype))
             np.testing.assert_array_equal(data1, data2)
+
+    def test_bin_signalentry_int64(self):
+        # int64 is stored as int32, the data must be cast accordingly
+        folder = os.path.join(self.tmpdir, 'data', 'bin_int64')
+        for dtype in ['int64', 'int', 'float', 'double']:
+            u = Unisens(folder, makenew=True)
+            data1 = np.array([[1, 2, 3], [-4, 5, 6]], dtype='int64')
+            SignalEntry(id='signal.bin', parent=u).set_data(data1, sampleRate=1,
+                                                            dataType=dtype)
+            u.save()
+            signal = Unisens(folder)['signal.bin']
+            itemsize = numpy_dtype(signal.dataType).itemsize
+            self.assertEqual(os.path.getsize(signal._filename), data1.size * itemsize)
+            np.testing.assert_array_equal(data1, signal.get_data())
+
+        with self.assertRaises(AssertionError):
+            SignalEntry(id='overflow.bin', parent=u).set_data([[2 ** 40]], sampleRate=1)
 
     def test_csv_signalentry_decimal_separator(self):
         # round trip: single and multi channel, different separator combinations
