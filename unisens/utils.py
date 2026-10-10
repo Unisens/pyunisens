@@ -6,6 +6,7 @@ some helper functions
 
 @author: skjerns
 """
+import csv
 import re
 import warnings
 from types import GeneratorType
@@ -86,6 +87,17 @@ def str2num(string, decimal_sep='.'):
         return string
 
 
+def quote(field, sep=';'):
+    """
+    Quote a csv field if it contains the separator or a newline, or starts
+    with a quote, so that it is read back as a single field.
+    Quotes inside the field are escaped by doubling them.
+    """
+    if sep in field or '\n' in field or '\r' in field or field.startswith('"'):
+        return '"' + field.replace('"', '""') + '"'
+    return field
+
+
 def write_csv(csv_file, data_list, sep=';', decimal_sep='.', comment=None):
     """
     Parameters
@@ -131,10 +143,10 @@ def write_csv(csv_file, data_list, sep=';', decimal_sep='.', comment=None):
         # if it contains several elements, we separate them with sep.
         # additionally we convert the decimal separator
         if isinstance(line, (list, np.ndarray, tuple)):
-            csv_string += sep.join([num2str(e, decimal_sep) for e in line])
+            csv_string += sep.join([quote(num2str(e, decimal_sep), sep) for e in line])
         # if it's not a list, we just convert to string
         else:
-            csv_string += num2str(line, decimal_sep)
+            csv_string += quote(num2str(line, decimal_sep), sep)
         csv_string += '\n'
 
     with open(csv_file, 'w') as f:
@@ -157,18 +169,17 @@ def read_csv(csv_file, comment='#', sep=';', decimal_sep='.',
     with open(csv_file, 'r') as f:
         content = f.read()
 
-    # split in lines
-    lines = content.split('\n')
+    # split in lines, ignore comments
+    lines = [line + '\n' for line in content.split('\n')
+             if not line.startswith(comment)]
 
-    # ignore comments and remove whitespaces
-    lines = [line.strip() for line in lines if not line.startswith(comment)]
+    # split into subentries, respecting quoted fields, and strip whitespaces
+    lines = [[el.strip() for el in line] or ['']
+             for line in csv.reader(lines, delimiter=sep, skipinitialspace=True)]
 
     # remove empty lines
     if not keep_empty:
-        lines = [line for line in lines if (line != '' and line != [])]
-
-    # split into subentries and strip of whitespaces
-    lines = [[el.strip() for el in line.split(sep)] for line in lines]
+        lines = [line for line in lines if line != ['']]
 
     # remove empty last element
     if not keep_empty:
