@@ -94,6 +94,21 @@ class Testing(unittest.TestCase):
         with self.assertRaises(ValueError):
             utils.write_csv(file, np.random.rand(3, 3, 3))
 
+    def test_read_write_csv_quoting(self):
+        file = os.path.join(self.tmpdir, 'file.csv')
+        labels = [[0, 'a;b'], [1, 'line\nbreak'], [2, '"quoted"'],
+                  [3, 'say "hi"'], [4, 'plain']]
+        utils.write_csv(file, labels)
+        with open(file) as f:
+            content = f.read()
+        self.assertIn('0;"a;b"\n', content)
+        self.assertIn('3;say "hi"\n', content)  # only quote when needed
+        self.assertIn('4;plain\n', content)
+        self.assertEqual(labels, utils.read_csv(file, convert_nums=True))
+
+        utils.write_csv(file, labels, sep=',')
+        self.assertEqual(labels, utils.read_csv(file, sep=',', convert_nums=True))
+
     def test_make_key(self):
         s = 'abcde12345'
         r = utils.make_key(s)

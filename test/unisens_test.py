@@ -464,6 +464,16 @@ class Testing(unittest.TestCase):
             np.testing.assert_almost_equal(Unisens(folder)['values.csv'].get_data(),
                                            values)
 
+    def test_evententry_label_with_separator(self):
+        folder = os.path.join(self.tmpdir, 'data', 'event_sep')
+        events = [[0, 'a;b'], [5, 'c'], [10, 'd;e;f']]
+        u = Unisens(folder, makenew=True)
+        EventEntry('events.csv', parent=u).set_data(events)
+        u.save()
+        e = Unisens(folder)['events.csv']
+        self.assertEqual(e.get_data(), events)
+        self.assertEqual(e.get_labels(), ['a;b', 'c', 'd;e;f'])
+
     def test_save_customtypes(self):
         folder = os.path.join(self.tmpdir, 'data', 'customtypes')
         from collections import OrderedDict
