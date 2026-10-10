@@ -550,9 +550,11 @@ class SignalEntry(FileEntry):
             in lines! len(self.channel) == len(data)
         dataType : str, optional
             The data type of the data. If None, is infered automatically.
-            Can be 'DOUBLE', 'FLOAT', 'INT16', 'INT32', 
-                   'INT8', 'UINT16', 'UINT32', 'UINT8'
+            Can be 'DOUBLE', 'FLOAT', 'INT16', 'INT32', 'INT64',
+                   'INT8', 'UINT16', 'UINT32', 'UINT64', 'UINT8'
             Will be used for binary stream output format. The default is None.
+            If None, int64/uint64 data is stored as int32/uint32, as 64 bit
+            types are not supported by all Unisens readers.
         ch_names : list, optional
             DESCRIPTION. The default is None.
         sampleRate : int, optional
@@ -582,6 +584,9 @@ class SignalEntry(FileEntry):
                 dataType = self.dataType
             else:
                 dataType = str(data.dtype)
+                # int64 is numpy's default, but many Unisens readers (e.g.
+                # unisens4java) do not support it. Only use it if requested.
+                dataType = {'int64': 'int32', 'uint64': 'uint32'}.get(dataType, dataType)
         self.set_attrib('dataType', infer_dtype(dataType).lower())
 
         if lsbValue is not None:
@@ -604,11 +609,14 @@ class SignalEntry(FileEntry):
             fileFormat = MiscEntry('binFileFormat', key='endianess', value=order)
             self.add_entry(fileFormat)
 
-            if 'int' in dataType:
+            # cast to the dtype written to the XML, which can differ from
+            # dataType, e.g. int64 is stored as int32
+            dtype = numpy_dtype(self.dataType)
+            if dtype.kind in 'iu':
                 data = np.round(data, 10)
-            data_formatted = data.astype(dataType)
+            data_formatted = data.astype(dtype)
             assert abs(np.sum(data - data_formatted)) < 1e-10, \
-                f"Can't format to dataType {dataType} without loss."
+                f"Can't format to dataType {self.dataType} without loss."
 
             # save data transposed because unisens reads rows*columns not columns*rows like numpy
             data_formatted.T.tofile(self._filename)
