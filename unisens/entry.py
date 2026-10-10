@@ -23,6 +23,7 @@ from .utils import (
     infer_dtype,
     lowercase,
     make_key,
+    numpy_dtype,
     read_csv,
     strip,
     valid_filename,
@@ -515,9 +516,7 @@ class SignalEntry(FileEntry):
         assert self.id.endswith('bin') and 'lsbValue' in dir(self), \
             'incompatible id: SignalEntry only allows for .bin or .csv format'
         n_channels = len(self.channel) if isinstance(self.channel, list) else 1
-        dtypestr = self.dataType.lower()
-        dtype = np.__dict__.get(dtypestr, f'UNKOWN_DATATYPE: {dtypestr}')
-        data = np.fromfile(self._filename, dtype=dtype)
+        data = np.fromfile(self._filename, dtype=numpy_dtype(self.dataType))
         if scaled:
             if 'baseline' in self.attrib:
                 data = ((data - float(self.baseline)) * float(self.lsbValue))

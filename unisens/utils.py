@@ -301,3 +301,15 @@ def infer_dtype(dataType: str) -> str:
     return dataType
 
 
+def numpy_dtype(dataType: str) -> np.dtype:
+    """
+    Mapping universal / java data type to numpy dtype.
+    'float' cannot be passed to numpy directly, as numpy interprets
+    it as float64, while in Unisens it denotes float32.
+
+    :param dataType: str with universal data type, e.g. 'float' or 'INT16'
+    :return: the corresponding numpy dtype
+    """
+    dtype_mapping = {'FLOAT': 'float32', 'DOUBLE': 'float64'}
+    dataType = dataType.upper()
+    return np.dtype(dtype_mapping.get(dataType, dataType.lower()))
