@@ -442,6 +442,28 @@ class Testing(unittest.TestCase):
         data = Unisens(folder)['s.csv'].get_data()
         np.testing.assert_almost_equal(data, [[0.5, 2.25], [1.5, 3.0]])
 
+    def test_csv_decimal_separator_numpy_floats(self):
+        # np.float32/np.float16 are no float subclasses, separator was ignored
+        for dtype in [np.float16, np.float32, np.float64]:
+            folder = os.path.join(self.tmpdir, 'data', f'csv_dec_{dtype.__name__}')
+            u = Unisens(folder, makenew=True)
+            data = np.array([[1.5, -2.25, 3.0]], dtype=dtype)
+            s = SignalEntry('x.csv', parent=u)
+            s.set_data(data, sampleRate=1, decimalSeparator=',', separator=';')
+            u.save()
+            with open(os.path.join(folder, 'x.csv')) as f:
+                content = f.read()
+            self.assertEqual(content, '1,5\n-2,25\n3,0\n')
+
+            values = np.array([[0, 1.5], [1, -2.25]], dtype=dtype)
+            v = ValuesEntry('values.csv', parent=u, separator=';', decimalSeparator=',')
+            v.set_data(values)
+            u.save()
+            with open(os.path.join(folder, 'values.csv')) as f:
+                self.assertNotIn('.', f.read())
+            np.testing.assert_almost_equal(Unisens(folder)['values.csv'].get_data(),
+                                           values)
+
     def test_save_customtypes(self):
         folder = os.path.join(self.tmpdir, 'data', 'customtypes')
         from collections import OrderedDict
