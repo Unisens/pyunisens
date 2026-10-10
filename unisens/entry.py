@@ -510,8 +510,10 @@ class SignalEntry(FileEntry):
             if dec != '.':
                 assert dec != sep, 'Error, separator cannot be same as decimalSeparator'
                 data = np.char.replace(data, dec, '.')
-            data = data.astype(float)
-            return data.T
+            data = data.astype(float).T
+            # single channel signals are returned as 1D, but keep the
+            # channel axis for multi channel signals with a single sample
+            return data[0] if len(data) == 1 else data
 
         assert self.id.endswith('bin') and 'lsbValue' in dir(self), \
             'incompatible id: SignalEntry only allows for .bin or .csv format'
