@@ -396,6 +396,20 @@ class Testing(unittest.TestCase):
         folder = os.path.join(self.tmpdir, 'data', 'record')
         u = Unisens(folder, makenew=True)
 
+    def test_bin_signalentry_float_dtype(self):
+        # 'float' is the unisens name for float32, np.float was removed in numpy 1.24
+        folder = os.path.join(self.tmpdir, 'data', 'bin_float')
+        for dtype, unisens_dtype in [('float32', 'float'), ('float64', 'double')]:
+            u = Unisens(folder, makenew=True)
+            data1 = np.array([[1.5, -2.25, 3.0], [4.0, 5.5, -6.75]], dtype=dtype)
+            SignalEntry(id='signal.bin', parent=u).set_data(data1, sampleRate=1)
+            u.save()
+            signal = Unisens(folder)['signal.bin']
+            self.assertEqual(signal.dataType, unisens_dtype)
+            data2 = signal.get_data()
+            self.assertEqual(data2.dtype, np.dtype(dtype))
+            np.testing.assert_array_equal(data1, data2)
+
     def test_csv_signalentry_decimal_separator(self):
         # round trip: single and multi channel, different separator combinations
         for i, (dec, sep) in enumerate([(',', ';'), ('.', ';'), ('.', ','), (',', '\t')]):
