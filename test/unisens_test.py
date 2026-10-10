@@ -452,21 +452,20 @@ class Testing(unittest.TestCase):
                            decimalSeparator=dec, separator=sep)
                 u.save()
                 data2 = Unisens(folder)['x.csv'].get_data()
-                np.testing.assert_almost_equal(np.squeeze(data1), data2)
+                np.testing.assert_almost_equal(data1, data2)
 
     def test_csv_signalentry_shape(self):
-        # single channel signals are 1D, but multi channel signals with a
-        # single sample must keep their channel axis
+        # one channel or one sample must not be flattened, same as .bin
         folder = os.path.join(self.tmpdir, 'data', 'csv_shape')
-        for shape, expected in [((1, 3), (3,)), ((1, 1), (1,)),
-                                ((3, 1), (3, 1)), ((2, 3), (2, 3))]:
+        for shape in [(1, 3), (3, 1), (1, 1), (2, 3)]:
             data1 = np.arange(np.prod(shape), dtype=float).reshape(shape)
-            u = Unisens(folder, makenew=True)
-            SignalEntry('x.csv', parent=u).set_data(data1, sampleRate=1)
-            u.save()
-            data2 = Unisens(folder)['x.csv'].get_data()
-            self.assertEqual(data2.shape, expected)
-            np.testing.assert_array_equal(data1.reshape(expected), data2)
+            for ext in ['csv', 'bin']:
+                u = Unisens(folder, makenew=True)
+                SignalEntry(f'x.{ext}', parent=u).set_data(data1, sampleRate=1)
+                u.save()
+                data2 = Unisens(folder)[f'x.{ext}'].get_data()
+                self.assertEqual(data2.shape, shape)
+                np.testing.assert_array_equal(data1, data2)
 
     def test_csv_signalentry_handwritten_comma_decimal(self):
         folder = os.path.join(self.tmpdir, 'data', 'csv_handwritten')
